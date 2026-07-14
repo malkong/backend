@@ -5,8 +5,8 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 
-from prompts import ANALYZE_PROMPT
-from schemas import AnalysisResult
+from app.core.prompts import ANALYZE_PROMPT
+from app.schemas.schemas import AnalysisResult
 
 load_dotenv()
 
