@@ -59,11 +59,11 @@ IT_3/
 ├── stt.py               # Faster-Whisper 기반 STT (영상/오디오 → speech_text, GPU)
 ├── card_generator.py    # 카드 후보 생성 (LLM fallback / AAC 모듈 교체 지점)
 ├── personalize.py       # 카드 개인화 점수 계산 + 정렬
-├── storage.py           # data/history.json 읽기/쓰기
+├── storage.py           # MySQL 접속/쿼리 (사용자 카드 선택 이력, card_history 테이블)
 ├── schemas.py           # Pydantic 요청/응답 모델
 ├── prompts.py           # LLM에 넣는 고정 프롬프트
 ├── data/
-│   └── history.json     # 사용자 카드 선택 이력 (자동 생성)
+│   └── seed_demo.sql    # 데모용 미리 데이터 INSERT 스크립트 (history.json 대체)
 ├── web/
 │   └── index.html       # 발표용 백업 웹 화면 (팀원 앱 연동 실패 시)
 ├── .env                 # GEMINI_API_KEY (절대 커밋 금지)
@@ -189,7 +189,8 @@ INTENT_LABELS = ["인사", "질문", "요청", "제안", "정보_전달", "감�
   "user_id": "user_123",
   "card": {
     "word": "좋아",
-    "category": "수락"
+    "category": "수락",
+    "card_id": "sym_042"
   },
   "context": {
     "intent": "제안"
@@ -199,6 +200,8 @@ INTENT_LABELS = ["인사", "질문", "요청", "제안", "정보_전달", "감�
 응답:
 { "ok": true, "new_count": 5 }
 ```
+> `card_id`는 옵션. AAC 팀원 모듈 연동 전(MVP)에는 서버가 자동으로 더미 값(`tmp_<word>`)을 채워 MySQL에 저장한다.
+> 카운팅 키는 `(user_id, word)` — `card_id`는 나중에 실제 값이 들어오면 자동으로 교체된다.
 
 ---
 
@@ -208,9 +211,9 @@ INTENT_LABELS = ["인사", "질문", "요청", "제안", "정보_전달", "감�
 {
   "user_id": "user_123",
   "top_cards": [
-    { "word": "좋아",   "category": "수락", "count": 31 },
-    { "word": "시간",   "category": "질문", "count": 15 },
-    { "word": "싫어",   "category": "거절", "count":  3 }
+    { "word": "좋아",   "category": "수락", "count": 31, "card_id": "tmp_좋아" },
+    { "word": "시간",   "category": "질문", "count": 15, "card_id": "tmp_시간" },
+    { "word": "싫어",   "category": "거절", "count":  3, "card_id": "tmp_싫어" }
   ]
 }
 ```
@@ -245,17 +248,41 @@ INTENT_LABELS = ["인사", "질문", "요청", "제안", "정보_전달", "감�
 
 ---
 
-## 데이터 구조 (data/history.json) — 카드 단위
-```json
-{
-  "user_123": {
-    "cards": {
-      "좋아":   { "count": 31, "category": "수락", "last_used": "2026-07-09T10:00:00" },
-      "시간":   { "count": 15, "category": "질문", "last_used": "2026-07-08T09:00:00" },
-      "싫어":   { "count":  3, "category": "거절", "last_used": "2026-06-20T09:00:00" }
-    }
-  }
-}
+## 데이터 구조 (MySQL, card_history 테이블) — 카드 단위
+개인화 이력은 `data/history.json` 대신 **MySQL**에 저장한다 (내 프로젝트 전용 DB, 직접 관리).
+카운팅 키는 `(user_id, word)`. `card_id`는 별도 컬럼으로 저장하며, MVP에서는 더미 값(`tmp_<word>`)을 채우고
+AAC 팀원 모듈 연동 후 실제 카드 고유번호로 자동 교체한다.
+
+```sql
+CREATE TABLE IF NOT EXISTS card_history (
+  id        BIGINT AUTO_INCREMENT PRIMARY KEY,
+  user_id   VARCHAR(64)  NOT NULL,
+  word      VARCHAR(64)  NOT NULL,
+  card_id   VARCHAR(64)  NULL,        -- MVP: 더미(tmp_<word>), 나중에 AAC 실제 id로 교체
+  category  VARCHAR(32)  NOT NULL,
+  count     INT          NOT NULL DEFAULT 0,
+  last_used DATETIME     NOT NULL,
+  UNIQUE KEY uq_user_word (user_id, word)
+) CHARACTER SET utf8mb4;
+```
+
+**카드 선택 시 UPSERT (count++ 한 번에 처리):**
+```sql
+INSERT INTO card_history (user_id, word, card_id, category, count, last_used)
+VALUES (%s, %s, %s, %s, 1, NOW())
+ON DUPLICATE KEY UPDATE
+  count     = count + 1,
+  last_used = NOW(),
+  card_id   = COALESCE(VALUES(card_id), card_id);  -- 실제 card_id 오면 자동으로 채움
+```
+
+**DB 접속 정보 (.env):**
+```
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=your_mysql_password
+DB_NAME=aac
 ```
 
 ---
@@ -275,7 +302,7 @@ score = base_rank + (0.08 × count)
 
 **데모 시나리오:**
 - 옵션 A: 실시간으로 "좋아" 4~5번 클릭 → 순위 변화 확인
-- 옵션 B: `history.json`에 미리 데이터 입력해두고 "이 사용자는 이런 패턴" 시연 (통합 데모용)
+- 옵션 B: `data/seed_demo.sql`을 MySQL에 미리 실행해두고 "이 사용자는 이런 패턴" 시연 (통합 데모용)
 - 두 옵션 모두 준비할 것
 
 **API 실패 시 fallback 카드 (하드코딩):**
@@ -309,9 +336,9 @@ FALLBACK_CARDS = [
     - 확정: Gemini API (gemini-3.1-flash-lite)
          ▼
 [최종 가공된 의도 분석 JSON 데이터 반환]
-- **개인화 저장**: JSON 파일이 아니라  (data/history.json) *DB는 백엔드 다른 팀원 담당
+- **개인화 저장**: MySQL (내 프로젝트 전용 DB, `card_history` 테이블, PyMySQL로 접속)
 - **응답 속도 목표**: 3초 이내
-- **패키지**: fastapi, uvicorn, google-genai, Faster-Whisper, python-dotenv, pydantic, python-multipart
+- **패키지**: fastapi, uvicorn, google-genai, Faster-Whisper, python-dotenv, pydantic, python-multipart, PyMySQL
 
 ---
 
@@ -326,6 +353,7 @@ FALLBACK_CARDS = [
 | AAC 팀원 모듈 늦어짐 | LLM fallback으로 card_generator.py가 혼자 돌아감 |
 | 1번 클릭에 순위 바뀜 | 공식을 0.08×count로 조정 (recency_bonus 제거) |
 | Gemini 3초 초과 | 데모용으로는 짧은 문장만 입력, 팀원에게 미리 알림 |
+| MySQL 연결 실패 | personalize.py가 get_counts 실패 시 개인화만 생략하고 원본 카드 순서 반환 (/analyze는 죽지 않음). /select는 팀 에러 형식으로 응답 |
 
 ---
 
@@ -399,23 +427,33 @@ FALLBACK_CARDS = [
 그 다음 2주차 코드를 짜줘.
 
 2주차에 만들 파일:
-- storage.py       (data/history.json 읽기/쓰기, 카드 단위 count++)
-- personalize.py   (score = base_rank + 0.08×count 공식, 카드 재정렬)
+- storage.py       (MySQL 접속/쿼리, card_history 테이블 UPSERT로 카드 단위 count++)
+- personalize.py   (score = base_rank + 0.08×count 공식, 카드 재정렬, DB 실패 시 개인화 생략하고 원본 반환)
+- data/seed_demo.sql (데모용 미리 데이터 INSERT 스크립트)
 
 2주차에 수정할 파일:
-- main.py          (POST /select, GET /profile/{user_id} 추가)
+- main.py          (startup에서 storage.init_db() 호출로 테이블 자동 생성, POST /select, GET /profile/{user_id} 추가)
 - llm.py           (/analyze가 personalize.py 연동해서 정렬된 카드 반환)
-- schemas.py       (SelectRequest, SelectResponse, ProfileResponse 추가)
+- schemas.py       (SelectRequest/SelectCard에 card_id 옵션 필드, SelectResponse, ProfileResponse 추가)
+- requirements.txt (PyMySQL 추가)
+- .env / .env.example (DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_NAME 추가)
 
 개인화 공식 주의:
 score = base_rank + (0.08 × count)  ← recency_bonus 없음
 base_rank: 1번=1.0, 2번=0.75, 3번=0.5, 4번=0.25, 5번=0.1, 6번=0.05
 
+card_id 처리 주의:
+- 카운팅 키는 어디까지나 (user_id, word). card_id는 참고용 별도 컬럼.
+- POST /select 요청에 card_id가 없으면 서버가 더미 값 `tmp_<word>`을 채워 저장.
+- 나중에 AAC 팀원 모듈에서 실제 card_id가 오면 UPSERT의 COALESCE로 자동 교체 (기존 값은 덮어쓰지 않되, NULL/더미는 갱신).
+
 2주차 완료 기준:
-1. POST /select 로 "좋아" 카드를 4번 기록
-2. POST /analyze 재호출 시 "좋아" 카드 score = 0.75 + 0.08×4 = 1.07 → 1위로 올라옴
-3. data/history.json 에 카드 이력 저장 확인
-4. GET /profile/user_123 → top_cards 확인
+1. MySQL에 `aac` 데이터베이스 생성 후 .env 설정, uvicorn 기동 시 card_history 테이블 자동 생성 확인
+2. POST /select 로 "좋아" 카드를 4번 기록
+3. POST /analyze 재호출 시 "좋아" 카드 score = 0.75 + 0.08×4 = 1.07 → 1위로 올라옴
+4. MySQL card_history 테이블에 카드 이력 및 card_id(더미) 저장 확인
+5. GET /profile/user_123 → top_cards 확인
+6. MySQL 중지 후 POST /analyze 호출 → 500 없이 개인화 생략된 카드 반환 확인 (graceful degradation)
 ```
 
 ---
@@ -479,9 +517,11 @@ NVIDIA_VISIBLE_DEVICES=0, -p 8082:22)에 이 프로젝트를 배포하고 STT를
 ---
 
 ## 검증 방법 (end-to-end)
-1. `uvicorn main:app --reload` → `http://localhost:8000/docs`
-2. `GET /health` → `{"status":"ok"}`
-3. `POST /analyze` → analysis 5필드 + cards(symbol_id/source 포함) 반환
-4. `POST /select` "좋아" 4번 → `POST /analyze` 재호출 → "좋아" score 1위 확인
-5. (연구실 GPU 서버) `POST /transcribe` + 한국어 음성/영상 → speech_text 반환 (ffmpeg + Faster-Whisper)
-6. `web/index.html` → STT 업로드 + 카드 표시 + 클릭 하이라이트 확인 (순위 변화는 2주차 완료 후)
+1. MySQL에 `aac` 데이터베이스 생성, `.env`에 DB 접속정보 입력
+2. `uvicorn main:app --reload` → `http://localhost:8000/docs` (startup 시 card_history 테이블 자동 생성)
+3. `GET /health` → `{"status":"ok"}`
+4. `POST /analyze` → analysis 5필드 + cards(symbol_id/source 포함) 반환
+5. `POST /select` "좋아" 4번 → `POST /analyze` 재호출 → "좋아" score 1위 확인
+6. MySQL `card_history` 테이블에서 카드 이력 및 card_id(더미) 저장 확인
+7. (연구실 GPU 서버) `POST /transcribe` + 한국어 음성/영상 → speech_text 반환 (ffmpeg + Faster-Whisper)
+8. `web/index.html` → STT 업로드 + 카드 표시 + 클릭 하이라이트 확인 (순위 변화는 2주차 완료 후)

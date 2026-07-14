@@ -120,7 +120,8 @@ INTENT_LABELS = ["인사", "질문", "요청", "제안", "정보_전달", "감�
   "user_id": "user_123",
   "card": {
     "word": "좋아",
-    "category": "수락"
+    "category": "수락",
+    "card_id": "sym_042"
   },
   "context": {
     "intent": "제안"
@@ -131,6 +132,9 @@ INTENT_LABELS = ["인사", "질문", "요청", "제안", "정보_전달", "감�
 { "ok": true, "new_count": 5 }
 ```
 
+> `card_id`는 옵션. AAC 팀원 모듈 연동 전(MVP)에는 서버가 자동으로 더미 값(`tmp_<word>`)을 채워 저장한다.
+> 개인화 이력은 MySQL(`card_history` 테이블)에 저장되며, 카운팅 키는 `(user_id, word)`다. `card_id`는 나중에 실제 값이 들어오면 자동으로 교체된다.
+
 ---
 
 ### 5. GET /profile/{user_id}
@@ -140,9 +144,9 @@ INTENT_LABELS = ["인사", "질문", "요청", "제안", "정보_전달", "감�
 {
   "user_id": "user_123",
   "top_cards": [
-    { "word": "좋아",   "category": "수락", "count": 31 },
-    { "word": "시간",   "category": "질문", "count": 15 },
-    { "word": "싫어",   "category": "거절", "count":  3 }
+    { "word": "좋아",   "category": "수락", "count": 31, "card_id": "tmp_좋아" },
+    { "word": "시간",   "category": "질문", "count": 15, "card_id": "tmp_시간" },
+    { "word": "싫어",   "category": "거절", "count":  3, "card_id": "tmp_싫어" }
   ]
 }
 ```
