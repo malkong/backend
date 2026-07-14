@@ -4,6 +4,7 @@ import tempfile
 
 from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from card_generator import get_candidate_cards
 from llm import analyze_intent
@@ -11,6 +12,7 @@ from schemas import AnalyzeRequest, AnalyzeResponse, TranscribeResponse
 from stt import transcribe as transcribe_speech
 
 app = FastAPI(title="AAC Mode 2 Server")
+app.mount("/web", StaticFiles(directory="web", html=True), name="web")
 
 
 @app.get("/health")

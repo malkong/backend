@@ -7,11 +7,14 @@ import os
 import subprocess
 import tempfile
 
+from dotenv import load_dotenv
 from faster_whisper import WhisperModel
 
-MODEL_SIZE = "small"
-DEVICE = "cuda"
-COMPUTE_TYPE = "float16"
+load_dotenv()
+
+MODEL_SIZE = os.getenv("STT_MODEL_SIZE", "small")
+DEVICE = os.getenv("STT_DEVICE", "cuda")
+COMPUTE_TYPE = os.getenv("STT_COMPUTE_TYPE", "float16")
 
 _model: WhisperModel | None = None
 
