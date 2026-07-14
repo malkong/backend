@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>AAC Mode 2 - 발표용 백업 화면</title>
+<style>
+  body { font-family: -apple-system, "Malgun Gothic", sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; }
+  h1 { font-size: 20px; }
+  textarea { width: 100%; height: 60px; font-size: 16px; padding: 8px; box-sizing: border-box; }
+  input[type=file] { margin-top: 8px; }
+  button { margin-top: 8px; margin-right: 8px; padding: 8px 16px; font-size: 15px; cursor: pointer; }
+  #status { color: #888; font-size: 13px; margin-top: 6px; min-height: 18px; }
+  #easyMeaning { margin-top: 16px; padding: 12px; background: #f0f6ff; border-radius: 8px; font-size: 16px; }
+  #intentInfo { margin-top: 6px; color: #555; font-size: 13px; }
+  #cards { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+  .card { border: 2px solid #ccc; border-radius: 10px; padding: 14px 18px; font-size: 18px; cursor: pointer; background: #fff; }
+  .card:hover { border-color: #888; }
+  .card.selected { border-color: #2b6cff; background: #e8f0ff; font-weight: bold; }
+  .card .cat { display: block; font-size: 11px; color: #999; margin-top: 4px; }
+</style>
+</head>
+<body>
+  <h1>AAC 보조 시스템 - 발표용 백업 화면</h1>
+
+  <div>
+    <label>영상/오디오 파일로 STT (선택):</label><br>
+    <input type="file" id="fileInput" accept="video/*,audio/*">
+    <button id="transcribeBtn">STT 변환</button>
+  </div>
+
+  <div style="margin-top:16px;">
+    <label>상대방 발화 (speech_text):</label>
+    <textarea id="speechText" placeholder="예: 오늘 수업 끝나고 같이 카페 갈래?"></textarea>
+  </div>
+
+  <button id="analyzeBtn">분석</button>
+  <button id="reanalyzeBtn">다시 분석</button>
+  <div id="status"></div>
+
+  <div id="easyMeaning" style="display:none;"></div>
+  <div id="intentInfo"></div>
+  <div id="cards"></div>
+
+  <script>
+    const API_BASE = window.location.origin;
+    const speechTextEl = document.getElementById('speechText');
+    const statusEl = document.getElementById('status');
+    const easyMeaningEl = document.getElementById('easyMeaning');
+    const intentInfoEl = document.getElementById('intentInfo');
+    const cardsEl = document.getElementById('cards');
+
+    function setStatus(msg) { statusEl.textContent = msg; }
+
+    async function transcribe() {
+      const file = document.getElementById('fileInput').files[0];
+      if (!file) { setStatus('파일을 먼저 선택하세요.'); return; }
+      setStatus('STT 변환 중...');
+      const form = new FormData();
+      form.append('file', file);
+      form.append('user_id', 'demo_user');
+      try {
+        const res = await fetch(`${API_BASE}/transcribe`, { method: 'POST', body: form });
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        speechTextEl.value = data.speech_text;
+        setStatus(`STT 완료 (${data.duration_sec}초, ${data.language})`);
+      } catch (err) {
+        setStatus('STT 실패: ' + err.message);
+      }
+    }
+
+    async function analyze() {
+      const speech_text = speechTextEl.value.trim();
+      if (!speech_text) { setStatus('speech_text를 입력하세요.'); return; }
+      setStatus('분석 중...');
+      try {
+        const res = await fetch(`${API_BASE}/analyze`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: 'demo_user', speech_text }),
+        });
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        renderResult(data);
+        setStatus('분석 완료');
+      } catch (err) {
+        setStatus('분석 실패: ' + err.message);
+      }
+    }
+
+    function renderResult(data) {
+      easyMeaningEl.style.display = 'block';
+      easyMeaningEl.textContent = data.analysis.easy_meaning;
+      intentInfoEl.textContent = `intent: ${data.analysis.intent} | confidence: ${data.analysis.confidence}`;
+
+      cardsEl.innerHTML = '';
+      data.cards.forEach(card => {
+        const el = document.createElement('div');
+        el.className = 'card';
+        el.innerHTML = `${card.word}<span class="cat">${card.category}</span>`;
+        el.addEventListener('click', () => {
+          // 개인화 저장(POST /select)은 2주차 기능이라 아직 없음 - 지금은 클릭 하이라이트만 표시
+          document.querySelectorAll('.card.selected').forEach(c => c.classList.remove('selected'));
+          el.classList.add('selected');
+        });
+        cardsEl.appendChild(el);
+      });
+    }
+
+    document.getElementById('transcribeBtn').addEventListener('click', transcribe);
+    document.getElementById('analyzeBtn').addEventListener('click', analyze);
+    document.getElementById('reanalyzeBtn').addEventListener('click', analyze);
+  </script>
+</body>
+</html>
