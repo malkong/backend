@@ -8,8 +8,8 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 
-from prompts import CARD_GENERATION_PROMPT
-from schemas import AnalysisResult, Card, GeminiCardList
+from app.core.prompts import CARD_GENERATION_PROMPT
+from app.schemas.schemas import AnalysisResult, Card, GeminiCardList
 
 load_dotenv()
 

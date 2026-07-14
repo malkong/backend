@@ -1,5 +1,5 @@
 """LLM에 넣는 고정 프롬프트 (의도 분석 + 임시 카드 생성)"""
-from schemas import INTENT_LABELS
+from app.schemas.schemas import INTENT_LABELS
 
 _INTENT_LABELS_TEXT = ", ".join(INTENT_LABELS)
 

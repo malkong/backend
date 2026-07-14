@@ -59,7 +59,7 @@ speech_text
 ```bash
 pip install -r requirements.txt
 # .env 파일에 GEMINI_API_KEY 설정 (.env.example 참고)
-uvicorn main:app --reload
+uvicorn app.main:app --reload
 # http://localhost:8000/docs 에서 API 테스트
 ```
 

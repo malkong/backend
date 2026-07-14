@@ -412,7 +412,7 @@ FALLBACK_CARDS = [
 
 1주차 완료 기준:
 1. pip install -r requirements.txt 성공
-2. uvicorn main:app --reload 실행
+2. uvicorn app.main:app --reload 실행
 3. http://localhost:8000/docs 에서 /analyze 테스트
 4. 입력: {"user_id":"test","speech_text":"오늘 수업 끝나고 같이 카페 갈래?"}
 5. 출력: analysis(5필드) + cards(단어 카드 4~6개, symbol_id/source 포함) JSON 정상 반환
@@ -507,7 +507,7 @@ NVIDIA_VISIBLE_DEVICES=0, -p 8082:22)에 이 프로젝트를 배포하고 STT를
 3. nvidia-smi로 GPU 인식 확인
 4. stt.py의 WhisperModel(device="cuda", compute_type="float16")이 이 GPU에서 정상 로드되는지
    (구형 GPU라 float16 미지원이면 compute_type="int8"로 조정)
-5. uvicorn main:app --port 8000 실행 후 실제 한국어 영상/음성 파일로 POST /transcribe 테스트
+5. uvicorn app.main:app --port 8000 실행 후 실제 한국어 영상/음성 파일로 POST /transcribe 테스트
 6. web/index.html 열어서 파일 업로드 → STT → /analyze 전체 흐름 확인
 7. 응답 속도가 목표(3초 이내)를 만족하는지 확인
 
@@ -518,7 +518,7 @@ NVIDIA_VISIBLE_DEVICES=0, -p 8082:22)에 이 프로젝트를 배포하고 STT를
 
 ## 검증 방법 (end-to-end)
 1. MySQL에 `aac` 데이터베이스 생성, `.env`에 DB 접속정보 입력
-2. `uvicorn main:app --reload` → `http://localhost:8000/docs` (startup 시 card_history 테이블 자동 생성)
+2. `uvicorn app.main:app --reload` → `http://localhost:8000/docs` (startup 시 card_history 테이블 자동 생성)
 3. `GET /health` → `{"status":"ok"}`
 4. `POST /analyze` → analysis 5필드 + cards(symbol_id/source 포함) 반환
 5. `POST /select` "좋아" 4번 → `POST /analyze` 재호출 → "좋아" score 1위 확인
