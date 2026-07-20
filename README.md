@@ -67,7 +67,7 @@ uvicorn app.main:app --reload
 
 - **서버**: FastAPI + Python
 - **의도 분석 LLM**: Gemini API (`gemini-3.1-flash-lite`)
-- **STT**: Faster-Whisper (GPU)
+- **STT**: Faster-Whisper (CPU)
 - **개인화 저장**: `data/history.json`
 
 자세한 설계 배경과 주차별 작업 계획은 [`PLAN_v1.md`](PLAN_v1.md) 참고.

@@ -56,7 +56,7 @@ speech_text → LLM 의도 분석 → [card_generator.py: AAC 모듈/DB 조회] 
 IT_3/
 ├── main.py              # FastAPI 앱 + 모든 엔드포인트
 ├── llm.py               # Gemini API 호출 (의도분석 프롬프트)
-├── stt.py               # Faster-Whisper 기반 STT (영상/오디오 → speech_text, GPU)
+├── stt.py               # Faster-Whisper 기반 STT (영상/오디오 → speech_text, CPU)
 ├── card_generator.py    # 카드 후보 생성 (LLM fallback / AAC 모듈 교체 지점)
 ├── personalize.py       # 카드 개인화 점수 계산 + 정렬
 ├── storage.py           # MySQL 접속/쿼리 (사용자 카드 선택 이력, card_history 테이블)
@@ -320,7 +320,7 @@ FALLBACK_CARDS = [
 ---
 
 ## 사용 기술
-- **서버**: FastAPI + Python (GPU 사용 가능)
+- **서버**: FastAPI + Python
 - **LLM : Gemini API (gemini-3.1-flash-lite, 확정)
 - STT**: Faster-Whisper
       - [영상 파일 (.wav/.mp3)] 
@@ -465,7 +465,7 @@ card_id 처리 주의:
 그 다음 3주차 코드를 짜줘.
 
 3주차에 만들 파일:
-- stt.py           (Faster-Whisper 기반 STT: ffmpeg으로 오디오 정규화 후 GPU 추론)
+- stt.py           (Faster-Whisper 기반 STT: ffmpeg으로 오디오 정규화 후 CPU 추론)
 - web/index.html   (발표용 백업 웹 화면)
 
 3주차에 수정할 파일:
@@ -473,8 +473,8 @@ card_id 처리 주의:
 - schemas.py       (TranscribeResponse 추가)
 - requirements.txt (faster-whisper 추가)
 
-STT 엔진 결정 (확정): Gemini가 아니라 Faster-Whisper(GPU, 연구실 서버) 사용.
-이유: 영상 입력이라 Gemini 멀티모달도 가능했지만, 짧은 클립(10초 이내) + GPU 서버 +
+STT 엔진 결정 (확정): Gemini가 아니라 Faster-Whisper(CPU) 사용.
+이유: 영상 입력이라 Gemini 멀티모달도 가능했지만, 짧은 클립(10초 이내) +
 Gemini 왕복 2회(STT+의도분석) 대비 지연시간 이득, 엔진 분리로 실패 지점 구분 용이.
 
 web/index.html 요구사항:
@@ -485,33 +485,30 @@ web/index.html 요구사항:
 - "다시 분석" 버튼 → 같은 speech_text로 /analyze 재호출
 
 3주차 완료 기준:
-1. (연구실 GPU 서버에서) POST /transcribe + 한국어 음성/영상 파일 → speech_text 정상 반환
+1. POST /transcribe + 한국어 음성/영상 파일 → speech_text 정상 반환
 2. web/index.html 브라우저 열기 → 파일 업로드 STT → 카드 표시 → 클릭 시 하이라이트 확인
 3. 2주차(/select, personalize.py) 완료 후 web/index.html에 저장·순위 변화 연동 추가
 ```
 
 ---
 
-### 배포 검증 지시문 (연구실 GPU 서버, 터미널 4에 복사)
+### 로컬 CPU 검증 지시문 (터미널 4에 복사)
 ```
 이 폴더의 PLAN_v1.md를 먼저 읽어줘.
 그 다음 stt.py, main.py, requirements.txt를 읽어봐.
 
-연구실 GPU 서버(VSCode Remote-SSH로 접속, nvcr.io/nvidia/pytorch:24.12-py3 컨테이너,
-NVIDIA_VISIBLE_DEVICES=0, -p 8082:22)에 이 프로젝트를 배포하고 STT를 실제로 검증해줘.
-로컬 Windows PC에는 GPU/ffmpeg가 없어서 아직 실제 추론 검증을 못 한 상태야.
+이 프로젝트를 로컬 Windows PC(CPU)에서 STT를 실제로 검증해줘.
+GPU 없이 CPU만으로 동작하는 것이 확정된 구성이야.
 
 확인할 것:
 1. ffmpeg 설치 여부 확인 (없으면 설치)
 2. pip install -r requirements.txt (faster-whisper==1.0.3 포함) 정상 설치되는지
-3. nvidia-smi로 GPU 인식 확인
-4. stt.py의 WhisperModel(device="cuda", compute_type="float16")이 이 GPU에서 정상 로드되는지
-   (구형 GPU라 float16 미지원이면 compute_type="int8"로 조정)
-5. uvicorn app.main:app --port 8000 실행 후 실제 한국어 영상/음성 파일로 POST /transcribe 테스트
-6. web/index.html 열어서 파일 업로드 → STT → /analyze 전체 흐름 확인
-7. 응답 속도가 목표(3초 이내)를 만족하는지 확인
+3. stt.py의 WhisperModel(device="cpu", compute_type="int8")이 정상 로드되는지
+4. uvicorn app.main:app --port 8000 실행 후 실제 한국어 영상/음성 파일로 POST /transcribe 테스트
+5. web/index.html 열어서 파일 업로드 → STT → /analyze 전체 흐름 확인
+6. 응답 속도가 목표(3초 이내)를 만족하는지 확인 (CPU라 모델 크기에 따라 초과 가능, 초과 시 STT_MODEL_SIZE를 더 작은 값으로 조정 검토)
 
-완료 기준: POST /transcribe가 실제 GPU에서 정확한 한국어 speech_text를 3초 이내로 반환
+완료 기준: POST /transcribe가 CPU에서 정확한 한국어 speech_text를 반환
 ```
 
 ---
@@ -523,5 +520,5 @@ NVIDIA_VISIBLE_DEVICES=0, -p 8082:22)에 이 프로젝트를 배포하고 STT를
 4. `POST /analyze` → analysis 5필드 + cards(symbol_id/source 포함) 반환
 5. `POST /select` "좋아" 4번 → `POST /analyze` 재호출 → "좋아" score 1위 확인
 6. MySQL `card_history` 테이블에서 카드 이력 및 card_id(더미) 저장 확인
-7. (연구실 GPU 서버) `POST /transcribe` + 한국어 음성/영상 → speech_text 반환 (ffmpeg + Faster-Whisper)
+7. `POST /transcribe` + 한국어 음성/영상 → speech_text 반환 (ffmpeg + Faster-Whisper, CPU)
 8. `web/index.html` → STT 업로드 + 카드 표시 + 클릭 하이라이트 확인 (순위 변화는 2주차 완료 후)
