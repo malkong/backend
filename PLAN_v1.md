@@ -56,7 +56,7 @@ speech_text → LLM 의도 분석 → [card_generator.py: AAC 모듈/DB 조회] 
 IT_3/
 ├── main.py              # FastAPI 앱 + 모든 엔드포인트
 ├── llm.py               # Gemini API 호출 (의도분석 프롬프트)
-├── stt.py               # Faster-Whisper 기반 STT (영상/오디오 → speech_text, GPU)
+├── stt.py               # Faster-Whisper 기반 STT (영상/오디오 → speech_text, CPU)
 ├── card_generator.py    # 카드 후보 생성 (LLM fallback / AAC 모듈 교체 지점)
 ├── personalize.py       # 카드 개인화 점수 계산 + 정렬
 ├── storage.py           # MySQL 접속/쿼리 (사용자 카드 선택 이력, card_history 테이블)
@@ -248,9 +248,15 @@ INTENT_LABELS = ["인사", "질문", "요청", "제안", "정보_전달", "감�
 
 ---
 
-## 데이터 구조 (MySQL, card_history 테이블) — 카드 단위
+## 데이터 구조 (MySQL) — card_history + usage_log (2026-07-21 Deep Interview로 확장 확정)
+> 상세 설계 근거: `.omc/specs/deep-interview-aac-context-personalization.md` (ambiguity 10%, PASSED)
+
 개인화 이력은 `data/history.json` 대신 **MySQL**에 저장한다 (내 프로젝트 전용 DB, 직접 관리).
-카운팅 키는 `(user_id, word)`. `card_id`는 별도 컬럼으로 저장하며, MVP에서는 더미 값(`tmp_<word>`)을 채우고
+**두 테이블을 함께 쓴다(dual write):**
+- `card_history`: 기존 그대로. `/analyze`에서 빠른 조회용 집계 테이블. 카운팅 키는 `(user_id, word)`.
+- `usage_log` (신규): 카드 선택 시점의 **상황(intent/place)까지 남기는 이벤트 로그**. 이 값들을 이용해 "같은 상황에서 자주 쓴 카드"에 가중치를 준다 (예: 병원에서 "응"을 자주 썼으면 다음에 병원 상황일 때 "응"에 보너스).
+
+`card_id`는 별도 컬럼으로 저장하며, MVP에서는 더미 값(`tmp_<word>`)을 채우고
 AAC 팀원 모듈 연동 후 실제 카드 고유번호로 자동 교체한다.
 
 ```sql
@@ -264,17 +270,41 @@ CREATE TABLE IF NOT EXISTS card_history (
   last_used DATETIME     NOT NULL,
   UNIQUE KEY uq_user_word (user_id, word)
 ) CHARACTER SET utf8mb4;
-```
 
-**카드 선택 시 UPSERT (count++ 한 번에 처리):**
+CREATE TABLE IF NOT EXISTS usage_log (
+  id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+  user_id     VARCHAR(64)  NOT NULL,
+  word        VARCHAR(64)  NOT NULL,
+  category    VARCHAR(32)  NOT NULL,
+  card_id     VARCHAR(64)  NULL,
+  intent      VARCHAR(16)  NULL,      -- INTENT_LABELS 중 하나, 없으면 NULL
+  place       VARCHAR(32)  NULL,      -- 고정 라벨셋, 없으면 NULL 또는 'unknown'
+  selected_at DATETIME     NOT NULL
+) CHARACTER SET utf8mb4;
+```
+> `speech_text`는 넣지 않는다 (2026-07-21 결정). 점수 계산에 안 쓰이는데 넣으려면 `POST /select` 계약에 필드를 하나 더 추가해서 앱 팀원에게 재요청해야 해서, 그 부담 대비 이득이 적다고 판단.
+
+**카드 선택 시 (같은 트랜잭션에서 둘 다 기록):**
 ```sql
+-- 1) card_history: 기존과 동일하게 UPSERT (count++ 한 번에 처리)
 INSERT INTO card_history (user_id, word, card_id, category, count, last_used)
 VALUES (%s, %s, %s, %s, 1, NOW())
 ON DUPLICATE KEY UPDATE
   count     = count + 1,
   last_used = NOW(),
   card_id   = COALESCE(VALUES(card_id), card_id);  -- 실제 card_id 오면 자동으로 채움
+
+-- 2) usage_log: append-only, 매번 새 행 INSERT (이벤트 로그이므로 UPSERT 없음)
+INSERT INTO usage_log (user_id, word, category, card_id, intent, place, speech_text, selected_at)
+VALUES (%s, %s, %s, %s, %s, %s, %s, NOW());
 ```
+
+**place 고정 라벨셋 (`POST /select` `context.place`, optional):**
+```
+bus_entrance, cafe, convenience_store, hospital, pharmacy, restaurant, subway_gate, unknown
+```
+- 없거나 `unknown`이어도 `/select`는 실패하지 않는다.
+- `unknown`/미기록은 나중에 점수 계산에서 **절대 서로 매칭되지 않는다** (unknown끼리도 보너스 없음).
 
 **DB 접속 정보 (.env):**
 ```
@@ -287,18 +317,25 @@ DB_NAME=aac
 
 ---
 
-## 개인화 점수 공식 (MVP, 수정됨)
+## 개인화 점수 공식 (MVP, 2026-07-21 Deep Interview로 상황 보너스 추가 확정)
 ```
-score = base_rank + (0.08 × count)
+score = base_rank + (0.08 × count) + (0.05 × intent_match_count) + (0.05 × place_match_count)
 ```
 - `base_rank`: LLM이 준 카드 순서 → 1번=1.0, 2번=0.75, 3번=0.5, 4번=0.25, 5번=0.1, 6번=0.05
-- `count`: history.json에서 해당 단어 카드 선택 횟수
-- recency_bonus 제거 → **3~4번 선택 후 순위 변화** (데모 시연에 적합)
+- `count`: 해당 `(user_id, word)`의 전체 선택 횟수 (`card_history.count`)
+- `intent_match_count`: `usage_log`에서 해당 `(user_id, word)` 중 **현재 intent와 일치**하는 행 개수
+- `place_match_count`: `usage_log`에서 해당 `(user_id, word)` 중 **현재 place와 일치**하는 행 개수
+- recency_bonus 없음, 기존 전역 공식은 그대로 두고 **가산만 추가** (완전 대체 아님)
+- `place`가 `NULL`/`unknown`인 기록은 현재 place가 무엇이든 매칭 대상에서 제외 (intent도 동일)
+- `usage_log` 조회 실패 시 `intent_bonus`/`place_bonus`는 0으로 처리 (기존 "MySQL 실패 시 개인화 생략" 규칙과 동일하게 적용, `/analyze`는 죽지 않음)
 
-**검증:**
+**검증 (기존 전역 공식):**
 - 카드A (1위, count=0): score = 1.0
 - 카드B (2위, count=4): score = 0.75 + 0.32 = 1.07 → 1위 역전 ✓
 - 카드B (2위, count=3): score = 0.75 + 0.24 = 0.99 → 아직 2위 (한 번 더 필요)
+
+**검증 (상황 보너스 추가):**
+- "응" 카드 (4위, count=3, 병원+확인 상황에서 매번 선택): score = 0.25 + 0.08×3 + 0.05×3(intent) + 0.05×3(place) = 0.25 + 0.24 + 0.15 + 0.15 = 0.79 → 같은 상황에서는 기존 2위(0.75)보다 높게 역전, 다른 상황에서는 보너스 없이 0.49로 그대로 4위권 유지
 
 **데모 시나리오:**
 - 옵션 A: 실시간으로 "좋아" 4~5번 클릭 → 순위 변화 확인
@@ -320,7 +357,7 @@ FALLBACK_CARDS = [
 ---
 
 ## 사용 기술
-- **서버**: FastAPI + Python (GPU 사용 가능)
+- **서버**: FastAPI + Python
 - **LLM : Gemini API (gemini-3.1-flash-lite, 확정)
 - STT**: Faster-Whisper
       - [영상 파일 (.wav/.mp3)] 
@@ -426,21 +463,27 @@ FALLBACK_CARDS = [
 그 다음 이미 있는 파일들(main.py, llm.py, schemas.py 등)을 읽어봐.
 그 다음 2주차 코드를 짜줘.
 
+이 폴더의 `.omc/specs/deep-interview-aac-context-personalization.md`도 함께 읽어줘 (usage_log/상황 보너스 상세 설계, Deep Interview로 검증 완료 ambiguity 10%).
+
 2주차에 만들 파일:
-- storage.py       (MySQL 접속/쿼리, card_history 테이블 UPSERT로 카드 단위 count++)
-- personalize.py   (score = base_rank + 0.08×count 공식, 카드 재정렬, DB 실패 시 개인화 생략하고 원본 반환)
-- data/seed_demo.sql (데모용 미리 데이터 INSERT 스크립트)
+- storage.py       (MySQL 접속/쿼리. card_history UPSERT + usage_log(word/category/card_id/intent/place/selected_at, speech_text 없음) INSERT를 같은 트랜잭션으로 처리)
+- personalize.py   (score = base_rank + 0.08×count + 0.05×intent_match_count + 0.05×place_match_count 공식, 카드 재정렬, DB 실패 시 개인화 생략하고 원본 반환)
+- data/seed_demo.sql (데모용 미리 데이터 INSERT 스크립트, usage_log 포함)
 
 2주차에 수정할 파일:
-- main.py          (startup에서 storage.init_db() 호출로 테이블 자동 생성, POST /select, GET /profile/{user_id} 추가)
+- main.py          (startup에서 storage.init_db() 호출로 card_history+usage_log 테이블 자동 생성, POST /select, GET /profile/{user_id} 추가)
 - llm.py           (/analyze가 personalize.py 연동해서 정렬된 카드 반환)
-- schemas.py       (SelectRequest/SelectCard에 card_id 옵션 필드, SelectResponse, ProfileResponse 추가)
+- schemas.py       (SelectRequest/SelectCard에 card_id 옵션 필드, SelectContext에 place 옵션 필드(고정 라벨 Literal), SelectResponse, ProfileResponse 추가)
 - requirements.txt (PyMySQL 추가)
 - .env / .env.example (DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_NAME 추가)
+- API_CONTRACT.md  (POST /select에 context.place 추가 반영 — 앱 팀원 공유 필요)
 
 개인화 공식 주의:
-score = base_rank + (0.08 × count)  ← recency_bonus 없음
+score = base_rank + (0.08 × count) + (0.05 × intent_match_count) + (0.05 × place_match_count)
 base_rank: 1번=1.0, 2번=0.75, 3번=0.5, 4번=0.25, 5번=0.1, 6번=0.05
+intent_match_count/place_match_count: usage_log에서 현재 intent/place와 일치하는 과거 선택 행 개수
+place가 NULL/"unknown"인 기록은 절대 매칭시키지 않음 (unknown끼리도 제외)
+usage_log 조회 실패 시 intent_bonus/place_bonus는 0으로 처리 (기존 개인화 생략 규칙과 동일하게)
 
 card_id 처리 주의:
 - 카운팅 키는 어디까지나 (user_id, word). card_id는 참고용 별도 컬럼.
@@ -448,12 +491,13 @@ card_id 처리 주의:
 - 나중에 AAC 팀원 모듈에서 실제 card_id가 오면 UPSERT의 COALESCE로 자동 교체 (기존 값은 덮어쓰지 않되, NULL/더미는 갱신).
 
 2주차 완료 기준:
-1. MySQL에 `aac` 데이터베이스 생성 후 .env 설정, uvicorn 기동 시 card_history 테이블 자동 생성 확인
+1. MySQL에 `aac` 데이터베이스 생성 후 .env 설정, uvicorn 기동 시 card_history + usage_log 테이블 자동 생성 확인
 2. POST /select 로 "좋아" 카드를 4번 기록
 3. POST /analyze 재호출 시 "좋아" 카드 score = 0.75 + 0.08×4 = 1.07 → 1위로 올라옴
-4. MySQL card_history 테이블에 카드 이력 및 card_id(더미) 저장 확인
-5. GET /profile/user_123 → top_cards 확인
-6. MySQL 중지 후 POST /analyze 호출 → 500 없이 개인화 생략된 카드 반환 확인 (graceful degradation)
+4. MySQL card_history 테이블에 카드 이력 및 card_id(더미) 저장 확인, usage_log에도 매 선택마다 행이 쌓이는지 확인
+5. POST /select 로 "응" 카드를 병원(hospital)+확인 상황에서 3번 기록 → 동일 상황(hospital+확인)으로 POST /analyze 재호출 시 "응" score가 다른 상황보다 명확히 높게 나오는지 확인
+6. GET /profile/user_123 → top_cards 확인
+7. MySQL 중지 후 POST /analyze 호출 → 500 없이 개인화(및 상황 보너스) 생략된 카드 반환 확인 (graceful degradation)
 ```
 
 ---
@@ -465,7 +509,7 @@ card_id 처리 주의:
 그 다음 3주차 코드를 짜줘.
 
 3주차에 만들 파일:
-- stt.py           (Faster-Whisper 기반 STT: ffmpeg으로 오디오 정규화 후 GPU 추론)
+- stt.py           (Faster-Whisper 기반 STT: ffmpeg으로 오디오 정규화 후 CPU 추론)
 - web/index.html   (발표용 백업 웹 화면)
 
 3주차에 수정할 파일:
@@ -473,8 +517,8 @@ card_id 처리 주의:
 - schemas.py       (TranscribeResponse 추가)
 - requirements.txt (faster-whisper 추가)
 
-STT 엔진 결정 (확정): Gemini가 아니라 Faster-Whisper(GPU, 연구실 서버) 사용.
-이유: 영상 입력이라 Gemini 멀티모달도 가능했지만, 짧은 클립(10초 이내) + GPU 서버 +
+STT 엔진 결정 (확정): Gemini가 아니라 Faster-Whisper(CPU) 사용.
+이유: 영상 입력이라 Gemini 멀티모달도 가능했지만, 짧은 클립(10초 이내) +
 Gemini 왕복 2회(STT+의도분석) 대비 지연시간 이득, 엔진 분리로 실패 지점 구분 용이.
 
 web/index.html 요구사항:
@@ -485,33 +529,30 @@ web/index.html 요구사항:
 - "다시 분석" 버튼 → 같은 speech_text로 /analyze 재호출
 
 3주차 완료 기준:
-1. (연구실 GPU 서버에서) POST /transcribe + 한국어 음성/영상 파일 → speech_text 정상 반환
+1. POST /transcribe + 한국어 음성/영상 파일 → speech_text 정상 반환
 2. web/index.html 브라우저 열기 → 파일 업로드 STT → 카드 표시 → 클릭 시 하이라이트 확인
 3. 2주차(/select, personalize.py) 완료 후 web/index.html에 저장·순위 변화 연동 추가
 ```
 
 ---
 
-### 배포 검증 지시문 (연구실 GPU 서버, 터미널 4에 복사)
+### 로컬 CPU 검증 지시문 (터미널 4에 복사)
 ```
 이 폴더의 PLAN_v1.md를 먼저 읽어줘.
 그 다음 stt.py, main.py, requirements.txt를 읽어봐.
 
-연구실 GPU 서버(VSCode Remote-SSH로 접속, nvcr.io/nvidia/pytorch:24.12-py3 컨테이너,
-NVIDIA_VISIBLE_DEVICES=0, -p 8082:22)에 이 프로젝트를 배포하고 STT를 실제로 검증해줘.
-로컬 Windows PC에는 GPU/ffmpeg가 없어서 아직 실제 추론 검증을 못 한 상태야.
+이 프로젝트를 로컬 Windows PC(CPU)에서 STT를 실제로 검증해줘.
+GPU 없이 CPU만으로 동작하는 것이 확정된 구성이야.
 
 확인할 것:
 1. ffmpeg 설치 여부 확인 (없으면 설치)
 2. pip install -r requirements.txt (faster-whisper==1.0.3 포함) 정상 설치되는지
-3. nvidia-smi로 GPU 인식 확인
-4. stt.py의 WhisperModel(device="cuda", compute_type="float16")이 이 GPU에서 정상 로드되는지
-   (구형 GPU라 float16 미지원이면 compute_type="int8"로 조정)
-5. uvicorn app.main:app --port 8000 실행 후 실제 한국어 영상/음성 파일로 POST /transcribe 테스트
-6. web/index.html 열어서 파일 업로드 → STT → /analyze 전체 흐름 확인
-7. 응답 속도가 목표(3초 이내)를 만족하는지 확인
+3. stt.py의 WhisperModel(device="cpu", compute_type="int8")이 정상 로드되는지
+4. uvicorn app.main:app --port 8000 실행 후 실제 한국어 영상/음성 파일로 POST /transcribe 테스트
+5. web/index.html 열어서 파일 업로드 → STT → /analyze 전체 흐름 확인
+6. 응답 속도가 목표(3초 이내)를 만족하는지 확인 (CPU라 모델 크기에 따라 초과 가능, 초과 시 STT_MODEL_SIZE를 더 작은 값으로 조정 검토)
 
-완료 기준: POST /transcribe가 실제 GPU에서 정확한 한국어 speech_text를 3초 이내로 반환
+완료 기준: POST /transcribe가 CPU에서 정확한 한국어 speech_text를 반환
 ```
 
 ---
@@ -523,5 +564,5 @@ NVIDIA_VISIBLE_DEVICES=0, -p 8082:22)에 이 프로젝트를 배포하고 STT를
 4. `POST /analyze` → analysis 5필드 + cards(symbol_id/source 포함) 반환
 5. `POST /select` "좋아" 4번 → `POST /analyze` 재호출 → "좋아" score 1위 확인
 6. MySQL `card_history` 테이블에서 카드 이력 및 card_id(더미) 저장 확인
-7. (연구실 GPU 서버) `POST /transcribe` + 한국어 음성/영상 → speech_text 반환 (ffmpeg + Faster-Whisper)
+7. `POST /transcribe` + 한국어 음성/영상 → speech_text 반환 (ffmpeg + Faster-Whisper, CPU)
 8. `web/index.html` → STT 업로드 + 카드 표시 + 클릭 하이라이트 확인 (순위 변화는 2주차 완료 후)

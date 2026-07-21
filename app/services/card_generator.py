@@ -2,6 +2,7 @@
 
 교체 범위: 이 파일 내부만 바꾸면 됨 (main.py, schemas.py는 변경 없음).
 """
+import logging
 import os
 
 from dotenv import load_dotenv
@@ -13,17 +14,19 @@ from app.schemas.schemas import AnalysisResult, Card, GeminiCardList
 
 load_dotenv()
 
+logger = logging.getLogger(__name__)
+
 MODEL_NAME = "gemini-3.1-flash-lite"
 
 BASE_RANKS = {0: 1.0, 1: 0.75, 2: 0.5, 3: 0.25, 4: 0.1, 5: 0.05}
 
 FALLBACK_CARDS = [
-    Card(id="f1", word="좋아", category="수락", symbol_id=None, source="fallback", score=1.0),
-    Card(id="f2", word="싫어", category="거절", symbol_id=None, source="fallback", score=0.75),
-    Card(id="f3", word="나중에", category="거절", symbol_id=None, source="fallback", score=0.5),
-    Card(id="f4", word="시간", category="질문", symbol_id=None, source="fallback", score=0.25),
-    Card(id="f5", word="어디", category="질문", symbol_id=None, source="fallback", score=0.1),
-    Card(id="f6", word="응", category="수락", symbol_id=None, source="fallback", score=0.05),
+    Card(id="f1", word="좋아", category="수락", symbol_id=None, source="llm_fallback", score=1.0),
+    Card(id="f2", word="싫어", category="거절", symbol_id=None, source="llm_fallback", score=0.75),
+    Card(id="f3", word="나중에", category="거절", symbol_id=None, source="llm_fallback", score=0.5),
+    Card(id="f4", word="시간", category="질문", symbol_id=None, source="llm_fallback", score=0.25),
+    Card(id="f5", word="어디", category="질문", symbol_id=None, source="llm_fallback", score=0.1),
+    Card(id="f6", word="응", category="수락", symbol_id=None, source="llm_fallback", score=0.05),
 ]
 
 
@@ -81,7 +84,9 @@ def get_candidate_cards(analysis: AnalysisResult, user_id: str) -> list[Card]:
     try:
         cards = _generate_llm_cards(analysis)
         if not cards:
+            logger.warning("카드 생성 결과가 비어 있어 FALLBACK_CARDS를 반환합니다. user_id=%s", user_id)
             return FALLBACK_CARDS
         return cards
     except Exception:
+        logger.warning("카드 생성 중 예외 발생, FALLBACK_CARDS를 반환합니다. user_id=%s", user_id, exc_info=True)
         return FALLBACK_CARDS

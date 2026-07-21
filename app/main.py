@@ -1,6 +1,7 @@
 """FastAPI 앱 (Week 1: GET /health, POST /analyze / Week 3: POST /transcribe). 엔드포인트만 담당, 비즈니스 로직 없음."""
 import os
 import tempfile
+from pathlib import Path
 
 from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.responses import JSONResponse
@@ -11,8 +12,10 @@ from app.services.llm import analyze_intent
 from app.schemas.schemas import AnalyzeRequest, AnalyzeResponse, TranscribeResponse
 from app.services.stt import transcribe as transcribe_speech
 
+WEB_DIR = Path(__file__).resolve().parent.parent / "web"
+
 app = FastAPI(title="AAC Mode 2 Server")
-app.mount("/web", StaticFiles(directory="web", html=True), name="web")
+app.mount("/web", StaticFiles(directory=WEB_DIR, html=True), name="web")
 
 
 @app.get("/health")

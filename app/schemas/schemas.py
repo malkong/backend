@@ -1,6 +1,6 @@
 """Pydantic 요청/응답 모델 (Week 1: /health, /analyze 관련)"""
 from typing import Literal, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 INTENT_LABELS = ("인사", "질문", "요청", "제안", "정보_전달", "감정_표현", "확인", "기타")
 
@@ -22,7 +22,7 @@ class AnalysisResult(BaseModel):
     intent_detail: str
     easy_meaning: str
     response_type: list[str]
-    confidence: float
+    confidence: float = Field(ge=0.0, le=1.0)
 
 
 class CardBase(BaseModel):

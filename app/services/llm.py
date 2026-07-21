@@ -1,4 +1,5 @@
 """Gemini 의도 분석 호출 (llm.py). /transcribe(STT)는 3주차에 추가."""
+import logging
 import os
 
 from dotenv import load_dotenv
@@ -9,6 +10,8 @@ from app.core.prompts import ANALYZE_PROMPT
 from app.schemas.schemas import AnalysisResult
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 MODEL_NAME = "gemini-3.1-flash-lite"
 
@@ -47,7 +50,9 @@ def analyze_intent(speech_text: str) -> AnalysisResult:
         )
         result = response.parsed
         if result is None:
+            logger.warning("Gemini 응답 파싱 결과가 없어 FALLBACK_ANALYSIS를 반환합니다.")
             return FALLBACK_ANALYSIS
         return result
     except Exception:
+        logger.warning("의도 분석 중 예외 발생, FALLBACK_ANALYSIS를 반환합니다.", exc_info=True)
         return FALLBACK_ANALYSIS
