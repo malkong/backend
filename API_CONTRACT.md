@@ -124,7 +124,8 @@ INTENT_LABELS = ["인사", "질문", "요청", "제안", "정보_전달", "감�
     "card_id": "sym_042"
   },
   "context": {
-    "intent": "제안"
+    "intent": "제안",
+    "place": "hospital"
   }
 }
 
@@ -133,7 +134,13 @@ INTENT_LABELS = ["인사", "질문", "요청", "제안", "정보_전달", "감�
 ```
 
 > `card_id`는 옵션. AAC 팀원 모듈 연동 전(MVP)에는 서버가 자동으로 더미 값(`tmp_<word>`)을 채워 저장한다.
-> 개인화 이력은 MySQL(`card_history` 테이블)에 저장되며, 카운팅 키는 `(user_id, word)`다. `card_id`는 나중에 실제 값이 들어오면 자동으로 교체된다.
+> 개인화 이력은 MySQL에 저장된다 (2026-07-21 확장): `card_history` 테이블(집계, 카운팅 키 `(user_id, word)`)과 `usage_log` 테이블(선택 시점의 intent/place까지 남기는 이벤트 로그)에 함께 기록된다. `card_id`는 나중에 실제 값이 들어오면 자동으로 교체된다.
+>
+> **`context.place`는 옵션(신규)**. 앱이 아직 위치를 모르면 생략하거나 `"unknown"`을 보내면 된다 — 어느 쪽이든 `/select`는 실패하지 않는다. 값은 아래 고정 라벨 중 하나만 사용:
+> ```
+> bus_entrance, cafe, convenience_store, hospital, pharmacy, restaurant, subway_gate, unknown
+> ```
+> `place`(및 `intent`)가 이후 선택과 같은 상황이면 `/analyze` 카드 점수에 소액 보너스가 붙는다 (상세: `.omc/specs/deep-interview-aac-context-personalization.md`).
 
 ---
 
