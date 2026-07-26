@@ -61,18 +61,25 @@
 ```json
 요청:
 {
-  "user_id": "user_123",
+  "user_id": 1,
   "speech_text": "오늘 수업 끝나고 같이 카페 갈래?",
   "dialogue_history": [
     { "speaker": "partner", "text": "이전 발화" },
     { "speaker": "user",    "text": "이전 답변" }
   ],
-  "visual_context": { "place": "classroom" }
+  "visual_context": { "place": "병원" }
 }
 ```
 
-MVP에서는 `speech_text`와 `user_id`만 필수.
+MVP에서는 `speech_text`와 `user_id`(숫자)만 필수.
 `dialogue_history`, `visual_context`는 옵션.
+
+**place 고정 라벨 (한글 7종)**
+`visual_context.place`는 아래 값 중 하나(옵션). 없거나 인식 불가한 값이면 **조용히 무시**되고 intent+공통 카드만으로 응답한다(에러 없음). `/select`의 `context.place`와 **동일한 도메인**이어야 개인화가 맞물린다:
+```
+공통, 식당, 병원, 카페, 대중교통, 편의점, 약국
+```
+(실제 입력 place는 물리적 6종(식당/병원/카페/대중교통/편의점/약국)만 오고, `공통`은 카드 컨텍스트 baseline 전용 값이다.)
 
 **intent 고정 라벨 (확정)**
 `analysis.intent`는 아래 8개 값 중 하나로만 반환 (자유 텍스트 금지):
@@ -92,20 +99,19 @@ INTENT_LABELS = ["인사", "질문", "요청", "제안", "정보_전달", "감�
     "confidence": 0.86
   },
   "cards": [
-    { "id": "c1", "word": "좋아",   "category": "수락", "symbol_id": null, "source": "llm_fallback", "score": 0.91 },
-    { "id": "c2", "word": "싫어",   "category": "거절", "symbol_id": null, "source": "llm_fallback", "score": 0.62 },
-    { "id": "c3", "word": "시간",   "category": "질문", "symbol_id": null, "source": "llm_fallback", "score": 0.55 },
-    { "id": "c4", "word": "어디",   "category": "질문", "symbol_id": null, "source": "llm_fallback", "score": 0.48 },
-    { "id": "c5", "word": "오늘",   "category": "시간", "symbol_id": null, "source": "llm_fallback", "score": 0.40 },
-    { "id": "c6", "word": "나중에", "category": "거절", "symbol_id": null, "source": "llm_fallback", "score": 0.35 }
+    { "word": "진통제를 주세요", "category": "의료", "card_id": 61, "image_url": "https://drive.google.com/file/d/.../view", "source": "card_db", "score": 0.70 },
+    { "word": "머리가 아파요",   "category": "의료", "card_id": 19, "image_url": "https://drive.google.com/file/d/.../view", "source": "card_db", "score": 0.50 },
+    { "word": "궁금해요",       "category": "기타", "card_id":  8, "image_url": "https://drive.google.com/file/d/.../view", "source": "card_db", "score": 0.30 },
+    { "word": "네",            "category": "인사", "card_id": 15, "image_url": "https://drive.google.com/file/d/.../view", "source": "card_db", "score": 0.00 }
   ]
 }
 ```
 
-- `cards`는 score 내림차순 정렬되어 반환
-- `word`: 단어 하나 (AAC 카드 하나)
-- `symbol_id`: null(MVP) → AAC 팀원 모듈 연동 시 실제 상징 ID 채워짐
-- `source`: `"llm_fallback"` (MVP) → `"aac_module"` 또는 `"card_db"` (최종)
+- `cards`는 score 내림차순 정렬되어 반환 (상위 8개)
+- `word`: 단어/구 하나 (AAC 카드 하나)
+- `card_id`: 카탈로그 카드 고유번호(숫자). 아직 매핑 안 된 경우 `null` (문자열 더미 없음)
+- `image_url`: 카드 이미지 URL(없으면 `null`)
+- `source`: `"card_db"` (카탈로그 매핑)
 - 문장 조합은 **앱/다른 팀원 담당**
 
 ---
@@ -117,15 +123,15 @@ INTENT_LABELS = ["인사", "질문", "요청", "제안", "정보_전달", "감�
 ```json
 요청:
 {
-  "user_id": "user_123",
+  "user_id": 1,
   "card": {
-    "word": "좋아",
-    "category": "수락",
-    "card_id": "sym_042"
+    "word": "진통제를 주세요",
+    "category": "의료",
+    "card_id": 61
   },
   "context": {
-    "intent": "제안",
-    "place": "hospital"
+    "intent": "요청",
+    "place": "병원"
   }
 }
 
@@ -133,14 +139,15 @@ INTENT_LABELS = ["인사", "질문", "요청", "제안", "정보_전달", "감�
 { "ok": true, "new_count": 5 }
 ```
 
-> `card_id`는 옵션. AAC 팀원 모듈 연동 전(MVP)에는 서버가 자동으로 더미 값(`tmp_<word>`)을 채워 저장한다.
-> 개인화 이력은 MySQL에 저장된다 (2026-07-21 확장): `card_history` 테이블(집계, 카운팅 키 `(user_id, word)`)과 `usage_log` 테이블(선택 시점의 intent/place까지 남기는 이벤트 로그)에 함께 기록된다. `card_id`는 나중에 실제 값이 들어오면 자동으로 교체된다.
+> `card_id`는 옵션(숫자). 값이 없으면 서버가 **NULL로 저장**한다(문자열 더미 없음). 카운팅 키는 `(user_id, word)`이며 card_id는 조인에 쓰이지 않는 메타데이터다 — 나중에 실제 값이 오면 UPSERT의 COALESCE로 자동 채워진다.
+> 개인화 이력은 MySQL에 저장된다: `card_history` 테이블(집계, 카운팅 키 `(user_id, word)`)과 `usage_log` 테이블(선택 시점의 intent/place까지 남기는 이벤트 로그)에 함께 기록된다.
+> DB 쓰기 실패 시에도 `/select`는 500을 내지 않고 `{ "ok": false, "new_count": 0 }`을 200으로 반환한다(graceful degradation).
 >
-> **`context.place`는 옵션(신규)**. 앱이 아직 위치를 모르면 생략하거나 `"unknown"`을 보내면 된다 — 어느 쪽이든 `/select`는 실패하지 않는다. 값은 아래 고정 라벨 중 하나만 사용:
+> **`context.place`는 옵션**. 앱이 위치를 모르면 생략하면 된다 — 생략/미지원 값이면 place 보너스만 빠지고 `/select`는 실패하지 않는다. 값은 `/analyze`와 **동일한 한글 7종** 도메인만 사용:
 > ```
-> bus_entrance, cafe, convenience_store, hospital, pharmacy, restaurant, subway_gate, unknown
+> 공통, 식당, 병원, 카페, 대중교통, 편의점, 약국
 > ```
-> `place`(및 `intent`)가 이후 선택과 같은 상황이면 `/analyze` 카드 점수에 소액 보너스가 붙는다 (상세: `.omc/specs/deep-interview-aac-context-personalization.md`).
+> `place`(및 `intent`)가 이후 선택과 같은 상황이면 `/analyze` 카드 점수에 소액 보너스가 붙는다. `place`/`intent`가 미기록(NULL)인 이력은 매칭 대상에서 제외된다(unknown끼리도 보너스 없음). (상세: `.omc/specs/deep-interview-aac-context-personalization.md`)
 
 ---
 
@@ -149,20 +156,22 @@ INTENT_LABELS = ["인사", "질문", "요청", "제안", "정보_전달", "감�
 ```json
 응답:
 {
-  "user_id": "user_123",
+  "user_id": 1,
   "top_cards": [
-    { "word": "좋아",   "category": "수락", "count": 31, "card_id": "tmp_좋아" },
-    { "word": "시간",   "category": "질문", "count": 15, "card_id": "tmp_시간" },
-    { "word": "싫어",   "category": "거절", "count":  3, "card_id": "tmp_싫어" }
+    { "word": "진통제를 주세요", "category": "의료", "count": 31, "card_id": 61 },
+    { "word": "머리가 아파요",   "category": "의료", "count": 15, "card_id": 19 },
+    { "word": "네",            "category": "인사", "count":  3, "card_id": null }
   ]
 }
 ```
+
+> `user_id`는 숫자, `card_id`는 숫자 또는 `null`(문자열 더미 없음).
 
 ---
 
 ## AAC 팀원과의 계약 (내 서버 ↔ AAC 카드 담당자)
 
-이 부분은 팀원과 이번 주에 확정해야 함.
+> (갱신) 이전에는 별도 카드 후보 API 연동을 팀원과 협의할 예정이었으나, `data/cards_catalog.json`(87장, `name/category/context/intention/image_url`)이 이미 AAC 카드 데이터 자체이며 `card_generator.py`가 이를 직접 매핑에 사용한다. 별도의 실시간 카드 후보 API 연동은 필요 없음 — **완료 기준은 이 카탈로그 파일 형식의 합의 유지**로 충분(라이브 통합 테스트는 스코프 밖).
 
 **내가 팀원에게 주는 것 (의도 분석 결과):**
 
@@ -171,30 +180,20 @@ INTENT_LABELS = ["인사", "질문", "요청", "제안", "정보_전달", "감�
   "intent": "제안",
   "intent_detail": "수업 후 함께 카페에 가자는 제안",
   "response_type": ["accept", "refuse", "question", "conditional"],
-  "context": { "place": "classroom" }
+  "context": { "place": "병원" }
 }
 ```
 
-**팀원이 나에게 주는 것 (카드 후보, 확정 전):**
+**카드 데이터 출처 (`data/cards_catalog.json`, AAC 카드 담당자 제공)**:
 
 ```json
 {
-  "cards": [
-    {
-      "id": "card_001",
-      "word": "좋아",
-      "category": "수락",
-      "symbol_id": "sym_042"
-    },
-    {
-      "id": "card_002",
-      "word": "싫어",
-      "category": "거절",
-      "symbol_id": "sym_018"
-    }
-  ]
+  "name": "좋아",
+  "category": "수락",
+  "context": "공통",
+  "intention": "확인",
+  "image_url": "https://..."
 }
 ```
 
-> LLM fallback 카드와 AAC 모듈 카드는 **동일한 형식**이어야 함.
-> 형식 유지 시 교체 후 `personalize.py`, `main.py` 수정 불필요.
+> `context`가 place(한글 7종), `intention`이 intent 라벨. `card_generator.py`가 이 필드를 그대로 매핑 tier 산출에 사용하며, 응답의 `card_id`는 `cards` 테이블의 AUTO_INCREMENT id(카탈로그 파일 폴백 시에는 `null`).
