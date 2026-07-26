@@ -145,9 +145,8 @@
         const img = card.image_url ? `<img src="${card.image_url}" alt="" onerror="this.style.display='none'">` : '';
         el.innerHTML = `${img}${card.word}<span class="cat">${card.category}</span>`;
         el.addEventListener('click', () => {
-          document.querySelectorAll('.card.selected').forEach(c => c.classList.remove('selected'));
-          el.classList.add('selected');
-          selectCard(card);
+          const nowSelected = el.classList.toggle('selected');
+          if (nowSelected) selectCard(card);
         });
         cardsEl.appendChild(el);
       });

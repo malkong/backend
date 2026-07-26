@@ -19,22 +19,6 @@ CATALOG_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "cards_c
 TOP_N = 8
 COMMON_CONTEXT = "공통"
 
-# 상대방 발화 intent -> 응답으로도 적합한 카드 intention 값(들).
-# 카탈로그의 intention은 "카드 자체의 발화 유형"이라 intent와 완전일치하는 카드가
-# 극히 적은 intent(제안=1장, 인사=0장 등)가 있다. 이 표는 그런 경우에도 "의도만" tier가
-# 텅 비지 않도록 직접일치(intention==intent)에 보조로 더하는 curated 확장 매칭이다.
-# (직접일치는 그대로 최우선 유지, 이 표는 additive.)
-RESPONSE_INTENTION_MAP = {
-    "인사": ["확인"],
-    "질문": ["질문", "확인"],
-    "요청": ["확인"],
-    "제안": ["확인"],
-    "정보_전달": ["확인"],
-    "감정_표현": ["확인"],
-    "확인": ["확인"],
-    "기타": [],
-}
-
 
 def _load_catalog_cards() -> list[dict]:
     """1차: storage(cards 테이블). 실패/빈 결과 시 2차: cards_catalog.json 직접 로드."""
@@ -58,19 +42,18 @@ def _load_catalog_cards() -> list[dict]:
 def _tier_for(card: dict, intent, place_active) -> tuple[str, bool]:
     """카드를 4-tier로 분류. (tier_key, included) 반환.
 
-    OR 합집합: card.context==place OR card.intention==intent(또는 RESPONSE_INTENTION_MAP
-    보조 매칭), 그리고 context=="공통"은 항상 baseline 포함.
+    OR 합집합: card.context==place OR intent in card.valid_for_intents,
+    그리고 context=="공통"은 항상 baseline 포함.
+
+    valid_for_intents는 "이 카드가 상대방의 어떤 intent에 대한 응답으로 적절한가"를
+    카드마다 직접 태깅한 리스트다. 카탈로그의 intention 필드(카드 자체의 발화 유형 —
+    화자가 사용자 자신)와는 축이 다르므로 매칭에 intention을 쓰지 않는다
+    (intention==intent로 직접 비교하면 화자가 뒤바뀌어 "되묻는" 카드가 뜨는 문제가 있었음).
     """
     context = card.get("context")
-    intention = card.get("intention")
+    valid_for_intents = card.get("valid_for_intents") or []
     place_match = bool(place_active) and context == place_active
-    direct_intent_match = intent is not None and intention is not None and intention == intent
-    response_intent_match = (
-        intent is not None
-        and intention is not None
-        and intention in RESPONSE_INTENTION_MAP.get(intent, ())
-    )
-    intent_match = direct_intent_match or response_intent_match
+    intent_match = intent is not None and intent in valid_for_intents
     is_common = context == COMMON_CONTEXT
 
     if not (place_match or intent_match or is_common):
