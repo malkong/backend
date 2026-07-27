@@ -171,7 +171,9 @@ INTENT_LABELS = ["인사", "질문", "요청", "제안", "정보_전달", "감�
 
 ## AAC 팀원과의 계약 (내 서버 ↔ AAC 카드 담당자)
 
-> (갱신) 이전에는 별도 카드 후보 API 연동을 팀원과 협의할 예정이었으나, `data/cards_catalog.json`(87장, `name/category/context/intention/image_url`)이 이미 AAC 카드 데이터 자체이며 `card_generator.py`가 이를 직접 매핑에 사용한다. 별도의 실시간 카드 후보 API 연동은 필요 없음 — **완료 기준은 이 카탈로그 파일 형식의 합의 유지**로 충분(라이브 통합 테스트는 스코프 밖).
+> (갱신) 이전에는 별도 카드 후보 API 연동을 팀원과 협의할 예정이었으나, `data/cards_catalog.json`(111장, `name/category/context/intention/image_url/valid_for_intents`)이 이미 AAC 카드 데이터 자체이며 `card_generator.py`가 이를 직접 매핑에 사용한다. 별도의 실시간 카드 후보 API 연동은 필요 없음 — **완료 기준은 이 카탈로그 파일 형식의 합의 유지**로 충분(라이브 통합 테스트는 스코프 밖).
+>
+> `valid_for_intents`는 카드가 "상대방의 어떤 intent에 대한 응답으로 적절한지"를 태깅한 배열(이 백엔드 로컬 전용 필드, 팀원 DB에는 없음). 매핑은 `intention`이 아니라 이 필드만 사용한다 — `intention`은 카드 자체(사용자)의 발화 유형이라 상대방 intent와 화자가 달라 직접 비교하면 부적절한 응답이 나올 수 있기 때문이다.
 
 **내가 팀원에게 주는 것 (의도 분석 결과):**
 

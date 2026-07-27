@@ -17,13 +17,18 @@ CREATE TABLE IF NOT EXISTS users (
 INSERT IGNORE INTO users (id) VALUES (1);
 
 -- 카탈로그 카드. intention은 NULL 허용(화요일/환승역 2건이 NULL).
+-- valid_for_intents: 이 카드가 "상대방의 어떤 intent"에 대한 응답으로 적절한지 태깅한
+-- 리스트(JSON 배열, 예: ["요청","제안","확인"]). intention과는 축이 다르다 —
+-- intention은 "카드 자체(사용자)의 발화 유형", valid_for_intents는 "상대방 intent"다.
+-- 매핑(card_generator._tier_for)은 이 필드만 사용하고 intention은 참고용으로 남긴다.
 CREATE TABLE IF NOT EXISTS cards (
-  id        BIGINT AUTO_INCREMENT PRIMARY KEY,
-  name      VARCHAR(128) NOT NULL,
-  category  VARCHAR(32)  NOT NULL,
-  context   VARCHAR(32)  NOT NULL,
-  intention VARCHAR(32)  NULL,
-  image_url VARCHAR(512) NULL,
+  id                 BIGINT AUTO_INCREMENT PRIMARY KEY,
+  name               VARCHAR(128) NOT NULL,
+  category           VARCHAR(32)  NOT NULL,
+  context            VARCHAR(32)  NOT NULL,
+  intention          VARCHAR(32)  NULL,
+  image_url          VARCHAR(512) NULL,
+  valid_for_intents  JSON         NULL,
   UNIQUE KEY uq_card_name (name)
 ) CHARACTER SET utf8mb4;
 

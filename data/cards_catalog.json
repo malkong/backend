@@ -4,608 +4,1195 @@
     "category": "긴급상황",
     "context": "병원",
     "intention": "기타",
-    "image_url": "https://drive.google.com/file/d/19FlQSz6_VwMWJtf0jIV_B2KOyR3mmPsK/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/19FlQSz6_VwMWJtf0jIV_B2KOyR3mmPsK/view?usp=sharing",
+    "valid_for_intents": [
+      "질문",
+      "정보_전달",
+      "기타"
+    ]
   },
   {
-    "name": "거스름돈",
+    "name": "거스름돈",
     "category": "쇼핑",
     "context": "편의점",
     "intention": "기타",
-    "image_url": "https://drive.google.com/file/d/1NBvSTmKj2P9HpQj_NReFAjARdnBg7P2B/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1NBvSTmKj2P9HpQj_NReFAjARdnBg7P2B/view?usp=sharing",
+    "valid_for_intents": [
+      "질문"
+    ]
   },
   {
-    "name": "계산할게요",
+    "name": "계산할게요",
     "category": "식당",
     "context": "식당",
     "intention": "요청",
-    "image_url": "https://drive.google.com/file/d/1YDe1mdKowo1AW8dN5QZfmocgpvOdLwGz/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1YDe1mdKowo1AW8dN5QZfmocgpvOdLwGz/view?usp=sharing",
+    "valid_for_intents": [
+      "질문",
+      "제안"
+    ]
   },
   {
-    "name": "고속터미널",
+    "name": "고속터미널",
     "category": "교통",
     "context": "대중교통",
     "intention": "기타",
-    "image_url": "https://drive.google.com/file/d/1O1wX_13g1cOnCLOJGdBglfmzokvB1VYk/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1O1wX_13g1cOnCLOJGdBglfmzokvB1VYk/view?usp=sharing",
+    "valid_for_intents": [
+      "질문"
+    ]
   },
   {
-    "name": "과자",
+    "name": "과자",
     "category": "쇼핑",
     "context": "편의점",
     "intention": "기타",
-    "image_url": "https://drive.google.com/file/d/198VKdfRpZGcYy_sHHChcnklsCaunMcOV/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/198VKdfRpZGcYy_sHHChcnklsCaunMcOV/view?usp=sharing",
+    "valid_for_intents": [
+      "질문"
+    ]
   },
   {
-    "name": "괜찮아요",
+    "name": "괜찮아요",
     "category": "인사",
     "context": "공통",
     "intention": "확인",
-    "image_url": "https://drive.google.com/file/d/1BdaVt4n8hB7myl10_537JEwyl9ipUNGY/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1BdaVt4n8hB7myl10_537JEwyl9ipUNGY/view?usp=sharing",
+    "valid_for_intents": [
+      "인사",
+      "질문",
+      "요청",
+      "제안",
+      "확인",
+      "정보_전달"
+    ]
   },
   {
-    "name": "교통카드 충전해주세요",
+    "name": "교통카드 충전해주세요",
     "category": "교통",
     "context": "편의점",
     "intention": "기타",
-    "image_url": "https://drive.google.com/file/d/1dAsQPajsoPkTn_mKB1w5ne-zsPVBwMH2/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1dAsQPajsoPkTn_mKB1w5ne-zsPVBwMH2/view?usp=sharing",
+    "valid_for_intents": [
+      "질문"
+    ]
   },
   {
-    "name": "교통카드",
+    "name": "교통카드",
     "category": "교통",
     "context": "대중교통",
     "intention": "기타",
-    "image_url": "https://drive.google.com/file/d/1lxqi_ttD1xTlyUhC22-O99siBjxaOuW3/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1lxqi_ttD1xTlyUhC22-O99siBjxaOuW3/view?usp=sharing",
+    "valid_for_intents": [
+      "질문"
+    ]
   },
   {
-    "name": "궁금해요",
+    "name": "궁금해요",
     "category": "기타",
     "context": "공통",
     "intention": "정보_전달",
-    "image_url": "https://drive.google.com/file/d/1Z9D6xWyrHOGWk4pKzLme-gpPqpQLpWPP/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1Z9D6xWyrHOGWk4pKzLme-gpPqpQLpWPP/view?usp=sharing",
+    "valid_for_intents": [
+      "질문",
+      "확인"
+    ]
   },
   {
-    "name": "긁혔어요",
+    "name": "긁혔어요",
     "category": "의료",
     "context": "병원",
     "intention": "정보_전달",
-    "image_url": "https://drive.google.com/file/d/1vDwlf0rxi9oNI5ngbDFcvQFMv0xnn36P/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1vDwlf0rxi9oNI5ngbDFcvQFMv0xnn36P/view?usp=sharing",
+    "valid_for_intents": [
+      "질문",
+      "확인"
+    ]
   },
   {
-    "name": "금요일",
+    "name": "금요일",
     "category": "시간",
     "context": "공통",
     "intention": "기타",
-    "image_url": "https://drive.google.com/file/d/13POA_hagleK67XM0QZyxE2vzoOTtspoh/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/13POA_hagleK67XM0QZyxE2vzoOTtspoh/view?usp=sharing",
+    "valid_for_intents": [
+      "질문"
+    ]
   },
   {
-    "name": "길을 잃었어요",
+    "name": "길을 잃었어요",
     "category": "긴급상황",
     "context": "공통",
     "intention": "정보_전달",
-    "image_url": "https://drive.google.com/file/d/1_OGBIh7M8QsZCUYtYv9YX1YCfnU76JOu/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1_OGBIh7M8QsZCUYtYv9YX1YCfnU76JOu/view?usp=sharing",
+    "valid_for_intents": [
+      "질문",
+      "인사",
+      "정보_전달"
+    ]
   },
   {
-    "name": "나가는 곳",
+    "name": "나가는 곳",
     "category": "교통",
     "context": "대중교통",
     "intention": "기타",
-    "image_url": "https://drive.google.com/file/d/1njYU3IUCFVet8xHOEoHEqd5T5g1b_apr/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1njYU3IUCFVet8xHOEoHEqd5T5g1b_apr/view?usp=sharing",
+    "valid_for_intents": [
+      "질문"
+    ]
   },
   {
-    "name": "내려주세요",
+    "name": "내려주세요",
     "category": "교통",
     "context": "공통",
     "intention": "요청",
-    "image_url": "https://drive.google.com/file/d/1vBKFjDCLRNGmarXxBRwCRb9Cw8OFttwy/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1vBKFjDCLRNGmarXxBRwCRb9Cw8OFttwy/view?usp=sharing",
+    "valid_for_intents": [
+      "정보_전달",
+      "질문"
+    ]
   },
   {
-    "name": "너무 뜨거워요",
+    "name": "너무 뜨거워요",
     "category": "식당",
     "context": "식당",
     "intention": "정보_전달",
-    "image_url": "https://drive.google.com/file/d/1XqMlHW84p8BpbcTSHv8I4xPAJMU8Sqox/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1XqMlHW84p8BpbcTSHv8I4xPAJMU8Sqox/view?usp=sharing",
+    "valid_for_intents": [
+      "질문",
+      "확인",
+      "정보_전달"
+    ]
   },
   {
-    "name": "네",
+    "name": "네",
     "category": "인사",
     "context": "공통",
     "intention": "확인",
-    "image_url": "https://drive.google.com/file/d/1fqQLgewKZB4baJpbUQSf6Q1DBUkMChxL/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1fqQLgewKZB4baJpbUQSf6Q1DBUkMChxL/view?usp=sharing",
+    "valid_for_intents": [
+      "인사",
+      "질문",
+      "요청",
+      "제안",
+      "확인",
+      "정보_전달"
+    ]
   },
   {
-    "name": "다음주",
+    "name": "다음주",
     "category": "시간",
     "context": "공통",
     "intention": "기타",
-    "image_url": "https://drive.google.com/file/d/10wWyjj6GVVdWHej5DaP91Pwe8TOtIMRx/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/10wWyjj6GVVdWHej5DaP91Pwe8TOtIMRx/view?usp=sharing",
+    "valid_for_intents": [
+      "질문"
+    ]
   },
   {
-    "name": "도와주세요",
+    "name": "도와주세요",
     "category": "긴급상황",
     "context": "공통",
     "intention": "요청",
-    "image_url": "https://drive.google.com/file/d/1a6N2vjtxN7_X7D0EmIC3Q6kN_ebnLlkC/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1a6N2vjtxN7_X7D0EmIC3Q6kN_ebnLlkC/view?usp=sharing",
+    "valid_for_intents": [
+      "질문",
+      "제안",
+      "정보_전달",
+      "기타"
+    ]
   },
   {
-    "name": "맛있어요",
+    "name": "맛있어요",
     "category": "식당",
     "context": "식당",
     "intention": "감정_표현",
-    "image_url": "https://drive.google.com/file/d/1yA1jeDQiT7rhQo5bLokmAWJ3t2rrs3B3/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1yA1jeDQiT7rhQo5bLokmAWJ3t2rrs3B3/view?usp=sharing",
+    "valid_for_intents": [
+      "질문",
+      "확인"
+    ]
   },
   {
-    "name": "머리가 아파요",
+    "name": "머리가 아파요",
     "category": "의료",
     "context": "병원",
     "intention": "정보_전달",
-    "image_url": "https://drive.google.com/file/d/1J5HGG91MmI-umjtHEhIUXqg2-IAZPK74/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1J5HGG91MmI-umjtHEhIUXqg2-IAZPK74/view?usp=sharing",
+    "valid_for_intents": [
+      "질문",
+      "확인"
+    ]
   },
   {
-    "name": "메뉴판 주세요",
+    "name": "메뉴판 주세요",
     "category": "식당",
     "context": "식당",
     "intention": "요청",
-    "image_url": "https://drive.google.com/file/d/1EatrZ5aGjJef4Ex8N4Q9KXOD3kpCMfpS/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1EatrZ5aGjJef4Ex8N4Q9KXOD3kpCMfpS/view?usp=sharing",
+    "valid_for_intents": [
+      "인사",
+      "질문"
+    ]
   },
   {
-    "name": "몇 호선",
+    "name": "몇 호선",
     "category": "교통",
     "context": "대중교통",
     "intention": "기타",
-    "image_url": "https://drive.google.com/file/d/1LCwaPIjTd5C3Upw719m921BJYAytRrBV/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1LCwaPIjTd5C3Upw719m921BJYAytRrBV/view?usp=sharing",
+    "valid_for_intents": [
+      "질문"
+    ]
   },
   {
-    "name": "몇번 버스 타요?",
+    "name": "몇번 버스 타요?",
     "category": "교통",
     "context": "대중교통",
     "intention": "질문",
-    "image_url": "https://drive.google.com/file/d/1x0QqkoBBu76g0De09-1fbZ5wYvYSjPwf/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1x0QqkoBBu76g0De09-1fbZ5wYvYSjPwf/view?usp=sharing",
+    "valid_for_intents": [
+      "정보_전달",
+      "기타"
+    ]
   },
   {
-    "name": "목요일",
+    "name": "목요일",
     "category": "시간",
     "context": "공통",
     "intention": "기타",
-    "image_url": "https://drive.google.com/file/d/1AGubPxQIO1M0H4TUBpH0hV1EsRJsrGqR/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1AGubPxQIO1M0H4TUBpH0hV1EsRJsrGqR/view?usp=sharing",
+    "valid_for_intents": [
+      "질문"
+    ]
   },
   {
-    "name": "목이 아파요",
+    "name": "목이 아파요",
     "category": "의료",
     "context": "병원",
     "intention": "정보_전달",
-    "image_url": "https://drive.google.com/file/d/1kHSYRrQ1aga275Cx6bxaHWEfapYgT4xX/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1kHSYRrQ1aga275Cx6bxaHWEfapYgT4xX/view?usp=sharing",
+    "valid_for_intents": [
+      "질문",
+      "확인"
+    ]
   },
   {
-    "name": "물은 어딨나요?",
+    "name": "물은 어딨나요?",
     "category": "식당",
     "context": "식당",
     "intention": "질문",
-    "image_url": "https://drive.google.com/file/d/1jFtPfV4sVHEpxHcJEnfoYLD611aoqRmg/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1jFtPfV4sVHEpxHcJEnfoYLD611aoqRmg/view?usp=sharing",
+    "valid_for_intents": [
+      "인사",
+      "정보_전달"
+    ]
   },
   {
-    "name": "물품보관함",
+    "name": "물품보관함",
     "category": "교통",
     "context": "대중교통",
     "intention": "기타",
-    "image_url": "https://drive.google.com/file/d/1AwPpRsKpjtkHcQogooeThpoBZvcJirJb/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1AwPpRsKpjtkHcQogooeThpoBZvcJirJb/view?usp=sharing",
+    "valid_for_intents": [
+      "질문"
+    ]
   },
   {
-    "name": "배가 아파요",
+    "name": "배가 아파요",
     "category": "의료",
     "context": "병원",
     "intention": "정보_전달",
-    "image_url": "https://drive.google.com/file/d/1skzWKHgv7a_frW2ZESGsnpdmoAgjl0FD/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1skzWKHgv7a_frW2ZESGsnpdmoAgjl0FD/view?usp=sharing",
+    "valid_for_intents": [
+      "질문",
+      "확인"
+    ]
   },
   {
-    "name": "버스 하차벨",
+    "name": "버스 하차벨",
     "category": "교통",
     "context": "대중교통",
     "intention": "기타",
-    "image_url": "https://drive.google.com/file/d/1Tcidfxj6264YpmC2EClXlI8GOiLKNkcX/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1Tcidfxj6264YpmC2EClXlI8GOiLKNkcX/view?usp=sharing",
+    "valid_for_intents": [
+      "질문"
+    ]
   },
   {
-    "name": "버스에서 교통비 지불",
+    "name": "버스에서 교통비 지불",
     "category": "교통",
     "context": "대중교통",
     "intention": "기타",
-    "image_url": "https://drive.google.com/file/d/1PtPjCOKM3R6jLt7vrA9N7GnyvRnBK110/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1PtPjCOKM3R6jLt7vrA9N7GnyvRnBK110/view?usp=sharing",
+    "valid_for_intents": [
+      "질문"
+    ]
   },
   {
-    "name": "버스정류장",
+    "name": "버스정류장",
     "category": "교통",
     "context": "대중교통",
     "intention": "기타",
-    "image_url": "https://drive.google.com/file/d/1YnQHdWDYAkKPxicorDn0rmXgD0NON2Uy/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1YnQHdWDYAkKPxicorDn0rmXgD0NON2Uy/view?usp=sharing",
+    "valid_for_intents": [
+      "질문"
+    ]
   },
   {
-    "name": "봉투에 담아주세요",
+    "name": "봉투에 담아주세요",
     "category": "쇼핑",
     "context": "편의점",
     "intention": "요청",
-    "image_url": "https://drive.google.com/file/d/1PZx-Jq2_Kf7lGdu4FHKZ0ZYqjJkfZbxL/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1PZx-Jq2_Kf7lGdu4FHKZ0ZYqjJkfZbxL/view?usp=sharing",
+    "valid_for_intents": [
+      "인사",
+      "질문"
+    ]
   },
   {
-    "name": "부러졌어요",
+    "name": "부러졌어요",
     "category": "의료",
     "context": "병원",
     "intention": "정보_전달",
-    "image_url": "https://drive.google.com/file/d/1nC7d4YW3ECz_EOzPuLxWhzyIn3GO2ls6/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1nC7d4YW3ECz_EOzPuLxWhzyIn3GO2ls6/view?usp=sharing",
+    "valid_for_intents": [
+      "질문",
+      "확인"
+    ]
   },
   {
-    "name": "빨대 주세요",
+    "name": "빨대 주세요",
     "category": "식당",
     "context": "식당",
     "intention": "요청",
-    "image_url": "https://drive.google.com/file/d/1lN0NluRrXxpYZ9MAuYsN19CEMGcMbHXC/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1lN0NluRrXxpYZ9MAuYsN19CEMGcMbHXC/view?usp=sharing",
+    "valid_for_intents": [
+      "인사",
+      "질문"
+    ]
   },
   {
-    "name": "빨대는 어딨나요?",
+    "name": "빨대는 어딨나요?",
     "category": "식당",
     "context": "식당",
     "intention": "질문",
-    "image_url": "https://drive.google.com/file/d/1HqRhi_R9qiJsQaSNd64x3744PcgJLQeW/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1HqRhi_R9qiJsQaSNd64x3744PcgJLQeW/view?usp=sharing",
+    "valid_for_intents": [
+      "인사",
+      "정보_전달"
+    ]
   },
   {
-    "name": "사용방법 알려주세요",
+    "name": "사용방법 알려주세요",
     "category": "기타",
     "context": "공통",
     "intention": "요청",
-    "image_url": "https://drive.google.com/file/d/17BkjR6ReRsBfzHW7NK3Fl5A1daxZHaKR/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/17BkjR6ReRsBfzHW7NK3Fl5A1daxZHaKR/view?usp=sharing",
+    "valid_for_intents": [
+      "정보_전달",
+      "질문"
+    ]
   },
   {
-    "name": "설사",
+    "name": "설사",
     "category": "긴급상황",
     "context": "병원",
     "intention": "정보_전달",
-    "image_url": "https://drive.google.com/file/d/1_8opbAfcYNVFtwme4Z4aLMBs5nWEcoqN/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1_8opbAfcYNVFtwme4Z4aLMBs5nWEcoqN/view?usp=sharing",
+    "valid_for_intents": [
+      "질문",
+      "확인"
+    ]
   },
   {
-    "name": "소화제",
+    "name": "소화제",
     "category": "의료",
     "context": "약국",
     "intention": "기타",
-    "image_url": "https://drive.google.com/file/d/1t9JQGWEcNe09LkyZbMnNheB5Ukqzm0VM/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1t9JQGWEcNe09LkyZbMnNheB5Ukqzm0VM/view?usp=sharing",
+    "valid_for_intents": [
+      "질문"
+    ]
   },
   {
-    "name": "수요일",
+    "name": "수요일",
     "category": "시간",
     "context": "공통",
     "intention": "기타",
-    "image_url": "https://drive.google.com/file/d/1enuPJO1u_lL7ok650QAW740YFedBOTOs/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1enuPJO1u_lL7ok650QAW740YFedBOTOs/view?usp=sharing",
+    "valid_for_intents": [
+      "질문"
+    ]
   },
   {
-    "name": "수저",
+    "name": "수저",
     "category": "식당",
     "context": "식당",
     "intention": "기타",
-    "image_url": "https://drive.google.com/file/d/1CStvTdITsQZQmLpp8rRtv2IRefwJCnec/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1CStvTdITsQZQmLpp8rRtv2IRefwJCnec/view?usp=sharing",
+    "valid_for_intents": [
+      "질문"
+    ]
   },
   {
-    "name": "식당은 어디예요?",
+    "name": "식당은 어디예요?",
     "category": "식당",
     "context": "공통",
     "intention": "질문",
-    "image_url": "https://drive.google.com/file/d/1bEZ_RJFShQbC-t9YCbkNtdl_vAkfEKoD/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1bEZ_RJFShQbC-t9YCbkNtdl_vAkfEKoD/view?usp=sharing",
+    "valid_for_intents": [
+      "인사",
+      "정보_전달"
+    ]
   },
   {
-    "name": "아니요",
+    "name": "아니요",
     "category": "인사",
     "context": "공통",
     "intention": "확인",
-    "image_url": "https://drive.google.com/file/d/1QX3bjfcU60lDy6s4oHaX6IO70uwMoqIv/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1QX3bjfcU60lDy6s4oHaX6IO70uwMoqIv/view?usp=sharing",
+    "valid_for_intents": [
+      "인사",
+      "질문",
+      "요청",
+      "제안",
+      "확인",
+      "정보_전달"
+    ]
   },
   {
-    "name": "앞접시 주세요",
+    "name": "앞접시 주세요",
     "category": "식당",
     "context": "식당",
     "intention": "요청",
-    "image_url": "https://drive.google.com/file/d/1EMGEuacbqgolnQul-UaGrb1QrzxjMXW9/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1EMGEuacbqgolnQul-UaGrb1QrzxjMXW9/view?usp=sharing",
+    "valid_for_intents": [
+      "인사",
+      "질문"
+    ]
   },
   {
-    "name": "약",
+    "name": "약",
     "category": "의료",
     "context": "약국",
     "intention": "기타",
-    "image_url": "https://drive.google.com/file/d/1-XMeer92vHx-uqggfC-CzVu9GOJ0zUby/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1-XMeer92vHx-uqggfC-CzVu9GOJ0zUby/view?usp=sharing",
+    "valid_for_intents": [
+      "질문"
+    ]
   },
   {
-    "name": "어디에 있어요?",
+    "name": "어디에 있어요?",
     "category": "교통",
     "context": "대중교통",
     "intention": "질문",
-    "image_url": "https://drive.google.com/file/d/1_IOtEceeuHByy6L6qa22Z8Fx1lfnyVYp/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1_IOtEceeuHByy6L6qa22Z8Fx1lfnyVYp/view?usp=sharing",
+    "valid_for_intents": [
+      "인사",
+      "정보_전달"
+    ]
   },
   {
-    "name": "어떻게 가요?",
+    "name": "어떻게 가요?",
     "category": "교통",
     "context": "대중교통",
     "intention": "질문",
-    "image_url": "https://drive.google.com/file/d/10Czq9UPHmfUDo6b5nYbVxYToEGdtdqN_/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/10Czq9UPHmfUDo6b5nYbVxYToEGdtdqN_/view?usp=sharing",
+    "valid_for_intents": [
+      "인사",
+      "정보_전달"
+    ]
   },
   {
-    "name": "언제예요?",
+    "name": "언제예요?",
     "category": "시간",
     "context": "공통",
     "intention": "질문",
-    "image_url": "https://drive.google.com/file/d/1Vh57BlqeoWQgrpil6JPTGuqcx3kEwhHG/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1Vh57BlqeoWQgrpil6JPTGuqcx3kEwhHG/view?usp=sharing",
+    "valid_for_intents": [
+      "정보_전달",
+      "제안"
+    ]
   },
   {
-    "name": "얼마예요?",
+    "name": "얼마예요?",
     "category": "쇼핑",
     "context": "편의점",
     "intention": "질문",
-    "image_url": "https://drive.google.com/file/d/1RoeO7_Ko5_pNlgb1BGs3wyj4i-2qzpPv/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1RoeO7_Ko5_pNlgb1BGs3wyj4i-2qzpPv/view?usp=sharing",
+    "valid_for_intents": [
+      "정보_전달",
+      "제안"
+    ]
   },
   {
-    "name": "연고",
+    "name": "연고",
     "category": "의료",
     "context": "약국",
     "intention": "기타",
-    "image_url": "https://drive.google.com/file/d/1sNCtJW1S79DC-baBxmrpUdI3xw--FSVV/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1sNCtJW1S79DC-baBxmrpUdI3xw--FSVV/view?usp=sharing",
+    "valid_for_intents": [
+      "질문"
+    ]
   },
   {
-    "name": "열이 나요",
+    "name": "열이 나요",
     "category": "의료",
     "context": "병원",
     "intention": "정보_전달",
-    "image_url": "https://drive.google.com/file/d/126DeAYC6c91ZFZxJAm8Us28KsZgoZShq/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/126DeAYC6c91ZFZxJAm8Us28KsZgoZShq/view?usp=sharing",
+    "valid_for_intents": [
+      "질문",
+      "확인"
+    ]
   },
   {
-    "name": "영수증 버려주세요",
+    "name": "영수증 버려주세요",
     "category": "쇼핑",
     "context": "편의점",
     "intention": "요청",
-    "image_url": "https://drive.google.com/file/d/1UEIDl8J4W77ani8brNep0F4j0IKFzRmv/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1UEIDl8J4W77ani8brNep0F4j0IKFzRmv/view?usp=sharing",
+    "valid_for_intents": [
+      "질문"
+    ]
   },
   {
-    "name": "영수증 주세요",
+    "name": "영수증 주세요",
     "category": "쇼핑",
     "context": "편의점",
     "intention": "요청",
-    "image_url": "https://drive.google.com/file/d/1yCL_XSTUPIKpYBlIDpUCFqqHpOk2Nk7r/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1yCL_XSTUPIKpYBlIDpUCFqqHpOk2Nk7r/view?usp=sharing",
+    "valid_for_intents": [
+      "인사",
+      "질문"
+    ]
   },
   {
-    "name": "월요일",
+    "name": "월요일",
     "category": "시간",
     "context": "공통",
     "intention": "기타",
-    "image_url": "https://drive.google.com/file/d/1Vima7R-04Icp3eGnlFzxr92RabXtmIK0/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1Vima7R-04Icp3eGnlFzxr92RabXtmIK0/view?usp=sharing",
+    "valid_for_intents": [
+      "질문"
+    ]
   },
   {
-    "name": "음료수",
+    "name": "음료수",
     "category": "식당",
     "context": "식당",
     "intention": "기타",
-    "image_url": "https://drive.google.com/file/d/1j8uvLdsLSR2B3meBHRtolQ06MsiP2Ps4/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1j8uvLdsLSR2B3meBHRtolQ06MsiP2Ps4/view?usp=sharing",
+    "valid_for_intents": [
+      "질문"
+    ]
   },
   {
-    "name": "의료보험증",
+    "name": "의료보험증",
     "category": "의료",
     "context": "병원",
     "intention": "기타",
-    "image_url": "https://drive.google.com/file/d/1as6KOtOJvQc8N6WdFEqPutRB1mgQNkHu/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1as6KOtOJvQc8N6WdFEqPutRB1mgQNkHu/view?usp=sharing",
+    "valid_for_intents": [
+      "질문",
+      "요청"
+    ]
   },
   {
-    "name": "이번주",
+    "name": "이번주",
     "category": "날짜/시간",
     "context": "공통",
     "intention": "기타",
-    "image_url": "https://drive.google.com/file/d/1Om6TAUUzxlbRJE0CekpANFQgzqe7W7Q_/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1Om6TAUUzxlbRJE0CekpANFQgzqe7W7Q_/view?usp=sharing",
+    "valid_for_intents": [
+      "질문"
+    ]
   },
   {
-    "name": "이빨아파요",
+    "name": "이빨아파요",
     "category": "의료",
     "context": "병원",
     "intention": "정보_전달",
-    "image_url": "https://drive.google.com/file/d/1UIA5CoToASHDg0I1qi0AGE7DoVXSjrCD/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1UIA5CoToASHDg0I1qi0AGE7DoVXSjrCD/view?usp=sharing",
+    "valid_for_intents": [
+      "질문",
+      "확인"
+    ]
   },
   {
-    "name": "일요일",
+    "name": "일요일",
     "category": "시간",
     "context": "공통",
     "intention": "기타",
-    "image_url": "https://drive.google.com/file/d/1bgLs0Qhv2mIXyFF0c4Lk4eyEmBIgBn4w/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1bgLs0Qhv2mIXyFF0c4Lk4eyEmBIgBn4w/view?usp=sharing",
+    "valid_for_intents": [
+      "질문"
+    ]
   },
   {
-    "name": "재채기를 해요",
+    "name": "재채기를 해요",
     "category": "의료",
     "context": "병원",
     "intention": "정보_전달",
-    "image_url": "https://drive.google.com/file/d/1O1A9D4g0HdgCY2SredRYjzljRc8fLpMd/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1O1A9D4g0HdgCY2SredRYjzljRc8fLpMd/view?usp=sharing",
+    "valid_for_intents": [
+      "질문",
+      "확인"
+    ]
   },
   {
-    "name": "전자기기 충전하기",
+    "name": "전자기기 충전하기",
     "category": "기타",
     "context": "카페",
     "intention": "기타",
-    "image_url": "https://drive.google.com/file/d/1wny9SCF1-0nWeuQfCI862EwRwhn9Kn8U/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1wny9SCF1-0nWeuQfCI862EwRwhn9Kn8U/view?usp=sharing",
+    "valid_for_intents": [
+      "질문"
+    ]
   },
   {
-    "name": "주문할게요",
+    "name": "주문할게요",
     "category": "식당",
     "context": "식당",
     "intention": "제안",
-    "image_url": "https://drive.google.com/file/d/1DtQ61ABNw6ljXqTG5BMCPimvuUjMmdr8/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1DtQ61ABNw6ljXqTG5BMCPimvuUjMmdr8/view?usp=sharing",
+    "valid_for_intents": [
+      "질문",
+      "제안"
+    ]
   },
   {
-    "name": "주세요",
+    "name": "주세요",
     "category": "식당",
     "context": "식당",
     "intention": "요청",
-    "image_url": "https://drive.google.com/file/d/16BgbiPWQU12HGzdJJ8SRCYU6wei7OiDm/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/16BgbiPWQU12HGzdJJ8SRCYU6wei7OiDm/view?usp=sharing",
+    "valid_for_intents": [
+      "인사",
+      "질문"
+    ]
   },
   {
-    "name": "지난주",
+    "name": "지난주",
     "category": "시간",
     "context": "공통",
     "intention": "기타",
-    "image_url": "https://drive.google.com/file/d/1qkEPtN00YRfVh-L65BkK38mkJC9qjwg5/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1qkEPtN00YRfVh-L65BkK38mkJC9qjwg5/view?usp=sharing",
+    "valid_for_intents": [
+      "질문"
+    ]
   },
   {
-    "name": "지하철 타기",
+    "name": "지하철 타기",
     "category": "교통",
     "context": "대중교통",
     "intention": "기타",
-    "image_url": "https://drive.google.com/file/d/1AZqDyox4Bxjqoqk5eLoxjcOuQUEFRm2M/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1AZqDyox4Bxjqoqk5eLoxjcOuQUEFRm2M/view?usp=sharing",
+    "valid_for_intents": [
+      "질문"
+    ]
   },
   {
-    "name": "진통제를 주세요",
+    "name": "진통제를 주세요",
     "category": "의료",
     "context": "병원",
     "intention": "요청",
-    "image_url": "https://drive.google.com/file/d/1It2cNN1x6LsjaDdZA3kdGliP1Gh1Eopo/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1It2cNN1x6LsjaDdZA3kdGliP1Gh1Eopo/view?usp=sharing",
+    "valid_for_intents": [
+      "질문"
+    ]
   },
   {
-    "name": "체했어요",
+    "name": "체했어요",
     "category": "긴급상황",
     "context": "식당",
     "intention": "정보_전달",
-    "image_url": "https://drive.google.com/file/d/1HlQOuovSYduzUmNO4oQAx5GhyzQl8xHT/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1HlQOuovSYduzUmNO4oQAx5GhyzQl8xHT/view?usp=sharing",
+    "valid_for_intents": [
+      "질문",
+      "확인"
+    ]
   },
   {
-    "name": "충전기",
+    "name": "충전기",
     "category": "교통",
     "context": "대중교통",
     "intention": "기타",
-    "image_url": "https://drive.google.com/file/d/1qvuhR4mVp2rWxPsFep8ZzZS5jSM2hg8t/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1qvuhR4mVp2rWxPsFep8ZzZS5jSM2hg8t/view?usp=sharing",
+    "valid_for_intents": [
+      "질문"
+    ]
   },
   {
-    "name": "캐리어에 담아주세요",
+    "name": "캐리어에 담아주세요",
     "category": "식당",
     "context": "식당",
     "intention": "요청",
-    "image_url": "https://drive.google.com/file/d/1mVg2jokKFrbH2DLLk3kAbmWfoR0Bk74j/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1mVg2jokKFrbH2DLLk3kAbmWfoR0Bk74j/view?usp=sharing",
+    "valid_for_intents": [
+      "인사",
+      "질문"
+    ]
   },
   {
-    "name": "콧물",
+    "name": "콧물",
     "category": "의료",
     "context": "병원",
     "intention": "기타",
-    "image_url": "https://drive.google.com/file/d/1hD169AIgcrVpKRUafV3J7At_Ifei-axb/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1hD169AIgcrVpKRUafV3J7At_Ifei-axb/view?usp=sharing",
+    "valid_for_intents": [
+      "질문"
+    ]
   },
   {
-    "name": "쿠폰",
+    "name": "쿠폰",
     "category": "쇼핑",
     "context": "편의점",
     "intention": "기타",
-    "image_url": "https://drive.google.com/file/d/12U2AgGQ6xLaHtrT4pkjfw_i5YA6WO-st/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/12U2AgGQ6xLaHtrT4pkjfw_i5YA6WO-st/view?usp=sharing",
+    "valid_for_intents": [
+      "질문"
+    ]
   },
   {
-    "name": "타는 곳",
+    "name": "타는 곳",
     "category": "교통",
     "context": "대중교통",
     "intention": "기타",
-    "image_url": "https://drive.google.com/file/d/1b-v5G4_0aZFvBG4Ftpvr6QTg9PAGPUh2/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1b-v5G4_0aZFvBG4Ftpvr6QTg9PAGPUh2/view?usp=sharing",
+    "valid_for_intents": [
+      "질문"
+    ]
   },
   {
-    "name": "텀블러에 담아주세요",
+    "name": "텀블러에 담아주세요",
     "category": "식당",
     "context": "식당",
     "intention": "요청",
-    "image_url": "https://drive.google.com/file/d/1PtimBrH9Cs4a9JI82eeNZg3UPzYHsIIb/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1PtimBrH9Cs4a9JI82eeNZg3UPzYHsIIb/view?usp=sharing",
+    "valid_for_intents": [
+      "인사",
+      "질문"
+    ]
   },
   {
-    "name": "테이블 치워주세요",
+    "name": "테이블 치워주세요",
     "category": "식당",
     "context": "식당",
     "intention": "요청",
-    "image_url": "https://drive.google.com/file/d/1-fWhbuL4iVQaThMm_V2XuX_1l3L5aw45/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1-fWhbuL4iVQaThMm_V2XuX_1l3L5aw45/view?usp=sharing",
+    "valid_for_intents": [
+      "질문",
+      "정보_전달"
+    ]
   },
   {
-    "name": "토요일",
+    "name": "토요일",
     "category": "시간",
     "context": "공통",
     "intention": "기타",
-    "image_url": "https://drive.google.com/file/d/1RIUiI6xdwRMJNM8n2DLzRen1uSAic2L1/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1RIUiI6xdwRMJNM8n2DLzRen1uSAic2L1/view?usp=sharing",
+    "valid_for_intents": [
+      "질문"
+    ]
   },
   {
-    "name": "파스",
+    "name": "파스",
     "category": "의료",
     "context": "약국",
     "intention": "기타",
-    "image_url": "https://drive.google.com/file/d/1XOAKw0f0KUcrD2E2yzQXt--Btpp4K-jf/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1XOAKw0f0KUcrD2E2yzQXt--Btpp4K-jf/view?usp=sharing",
+    "valid_for_intents": [
+      "질문"
+    ]
   },
   {
-    "name": "포인트 적립할게요",
+    "name": "포인트 적립할게요",
     "category": "쇼핑",
     "context": "편의점",
     "intention": "요청",
-    "image_url": "https://drive.google.com/file/d/1kVxwz8f1HQWCALcBK9t9y-z5dsNAqL5v/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1kVxwz8f1HQWCALcBK9t9y-z5dsNAqL5v/view?usp=sharing",
+    "valid_for_intents": [
+      "질문"
+    ]
   },
   {
-    "name": "포장할게요",
+    "name": "포장할게요",
     "category": "식당",
     "context": "식당",
     "intention": "요청",
-    "image_url": "https://drive.google.com/file/d/153q3nsBKff7vd8YSLWT3lGgt4xVLKCLJ/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/153q3nsBKff7vd8YSLWT3lGgt4xVLKCLJ/view?usp=sharing",
+    "valid_for_intents": [
+      "인사",
+      "질문"
+    ]
   },
   {
-    "name": "포크",
+    "name": "포크",
     "category": "식당",
     "context": "식당",
     "intention": "기타",
-    "image_url": "https://drive.google.com/file/d/1vlesDhsHlNpa708k7RKSFysI2lt_0YzD/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1vlesDhsHlNpa708k7RKSFysI2lt_0YzD/view?usp=sharing",
+    "valid_for_intents": [
+      "질문"
+    ]
   },
   {
-    "name": "피가 나요",
+    "name": "피가 나요",
     "category": "의료",
     "context": "병원",
     "intention": "정보_전달",
-    "image_url": "https://drive.google.com/file/d/1rr9oEOoR1PTHQgDP15w1srEQN5ou4xSt/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1rr9oEOoR1PTHQgDP15w1srEQN5ou4xSt/view?usp=sharing",
+    "valid_for_intents": [
+      "질문",
+      "확인"
+    ]
   },
   {
-    "name": "해열제",
+    "name": "해열제",
     "category": "의료",
     "context": "약국",
     "intention": "기타",
-    "image_url": "https://drive.google.com/file/d/10f3j2vPkA3Vtm7hHoX9zpcQ9JPrgyOFq/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/10f3j2vPkA3Vtm7hHoX9zpcQ9JPrgyOFq/view?usp=sharing",
+    "valid_for_intents": [
+      "질문"
+    ]
   },
   {
-    "name": "혼자 왔어요",
+    "name": "혼자 왔어요",
     "category": "식당",
     "context": "식당",
     "intention": "정보_전달",
-    "image_url": "https://drive.google.com/file/d/1GUgIArhzNE03DptBeCtD3pLXO1cBoG9R/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1GUgIArhzNE03DptBeCtD3pLXO1cBoG9R/view?usp=sharing",
+    "valid_for_intents": [
+      "질문",
+      "확인"
+    ]
   },
   {
-    "name": "화상연고",
+    "name": "화상연고",
     "category": "의료",
     "context": "약국",
     "intention": "기타",
-    "image_url": "https://drive.google.com/file/d/1nw1MuqIgNb9cR_CMW7kY0SIYAZHGX9rF/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1nw1MuqIgNb9cR_CMW7kY0SIYAZHGX9rF/view?usp=sharing",
+    "valid_for_intents": [
+      "질문"
+    ]
   },
   {
-    "name": "화상을 입다",
+    "name": "화상을 입다",
     "category": "긴급상황",
     "context": "병원",
     "intention": "정보_전달",
-    "image_url": "https://drive.google.com/file/d/1zkXxOFfkiWmrx-PtghA0kmOiBoNQ8HOy/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1zkXxOFfkiWmrx-PtghA0kmOiBoNQ8HOy/view?usp=sharing",
+    "valid_for_intents": [
+      "질문",
+      "확인"
+    ]
   },
   {
-    "name": "화요일",
+    "name": "화요일",
     "category": "시간",
     "context": "공통",
     "intention": null,
-    "image_url": "https://drive.google.com/file/d/1KRsm4b5QwkNPEvrZJSVXY8zadVX842tO/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1KRsm4b5QwkNPEvrZJSVXY8zadVX842tO/view?usp=sharing",
+    "valid_for_intents": [
+      "질문"
+    ]
   },
   {
-    "name": "화장실이 어디인가요?",
+    "name": "화장실이 어디인가요?",
     "category": "일상생활",
     "context": "공통",
     "intention": "질문",
-    "image_url": "https://drive.google.com/file/d/1pDtxY6CbEcSadJ8TpFsfHaHoLJkHoE7W/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1pDtxY6CbEcSadJ8TpFsfHaHoLJkHoE7W/view?usp=sharing",
+    "valid_for_intents": [
+      "인사",
+      "정보_전달"
+    ]
   },
   {
-    "name": "환승역",
+    "name": "환승역",
     "category": "교통",
     "context": "대중교통",
     "intention": null,
-    "image_url": "https://drive.google.com/file/d/14wDgq9yPJbHuYdQ1IFBy906734XnUt41/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/14wDgq9yPJbHuYdQ1IFBy906734XnUt41/view?usp=sharing",
+    "valid_for_intents": [
+      "질문"
+    ]
   },
   {
-    "name": "휘핑크림 올려주세요",
+    "name": "휘핑크림 올려주세요",
     "category": "식당",
     "context": "카페",
     "intention": "요청",
-    "image_url": "https://drive.google.com/file/d/1fC_YBZCq3OLWojsBweQTdcya_7lkuXd0/view?usp=sharing"
+    "image_url": "https://drive.google.com/file/d/1fC_YBZCq3OLWojsBweQTdcya_7lkuXd0/view?usp=sharing",
+    "valid_for_intents": [
+      "질문"
+    ]
+  },
+  {
+    "name": "콧물이 나요",
+    "category": "의료",
+    "context": "병원",
+    "intention": "정보_전달",
+    "image_url": "https://www.aacmaker.or.kr/api/symbol_display?symidx=SYM_4997&centeridx=CEN_12",
+    "valid_for_intents": [
+      "질문",
+      "확인"
+    ]
+  },
+  {
+    "name": "설사해요",
+    "category": "의료",
+    "context": "병원",
+    "intention": "정보_전달",
+    "image_url": "https://www.aacmaker.or.kr/api/symbol_display?symidx=SYM_4278&centeridx=CEN_2",
+    "valid_for_intents": [
+      "질문",
+      "확인"
+    ]
+  },
+  {
+    "name": "눈이 아파요",
+    "category": "의료",
+    "context": "병원",
+    "intention": "정보_전달",
+    "image_url": "https://www.aacmaker.or.kr/api/symbol_display?symidx=SYM_1060&centeridx=CEN_3",
+    "valid_for_intents": [
+      "질문",
+      "확인"
+    ]
+  },
+  {
+    "name": "귀가 아파요",
+    "category": "의료",
+    "context": "병원",
+    "intention": "정보_전달",
+    "image_url": "https://www.aacmaker.or.kr/api/symbol_display?symidx=SYM_1299&centeridx=CEN_3",
+    "valid_for_intents": [
+      "질문",
+      "확인"
+    ]
+  },
+  {
+    "name": "허리가 아파요",
+    "category": "의료",
+    "context": "병원",
+    "intention": "정보_전달",
+    "image_url": "https://www.aacmaker.or.kr/api/symbol_display?symidx=SYM_1065&centeridx=CEN_3",
+    "valid_for_intents": [
+      "질문",
+      "확인"
+    ]
+  },
+  {
+    "name": "어지러워요",
+    "category": "의료",
+    "context": "병원",
+    "intention": "정보_전달",
+    "image_url": "https://www.aacmaker.or.kr/api/symbol_display?symidx=SYM_1069&centeridx=CEN_3",
+    "valid_for_intents": [
+      "질문",
+      "확인"
+    ]
+  },
+  {
+    "name": "가려워요",
+    "category": "의료",
+    "context": "병원",
+    "intention": "정보_전달",
+    "image_url": "https://www.aacmaker.or.kr/api/symbol_display?symidx=SYM_1071&centeridx=CEN_3",
+    "valid_for_intents": [
+      "질문",
+      "확인"
+    ]
+  },
+  {
+    "name": "목이 부었어요",
+    "category": "의료",
+    "context": "병원",
+    "intention": "정보_전달",
+    "image_url": "https://www.aacmaker.or.kr/api/symbol_display?symidx=SYM_1311&centeridx=CEN_3",
+    "valid_for_intents": [
+      "질문",
+      "확인"
+    ]
+  },
+  {
+    "name": "코가 막혀요",
+    "category": "의료",
+    "context": "병원",
+    "intention": "정보_전달",
+    "image_url": "https://www.aacmaker.or.kr/api/symbol_display?symidx=SYM_1307&centeridx=CEN_3",
+    "valid_for_intents": [
+      "질문",
+      "확인"
+    ]
+  },
+  {
+    "name": "귀가 울려요",
+    "category": "의료",
+    "context": "병원",
+    "intention": "정보_전달",
+    "image_url": "https://www.aacmaker.or.kr/api/symbol_display?symidx=SYM_1304&centeridx=CEN_3",
+    "valid_for_intents": [
+      "질문",
+      "확인"
+    ]
+  },
+  {
+    "name": "소리가 잘 안들려요",
+    "category": "의료",
+    "context": "병원",
+    "intention": "정보_전달",
+    "image_url": "https://www.aacmaker.or.kr/api/symbol_display?symidx=SYM_1305&centeridx=CEN_3",
+    "valid_for_intents": [
+      "질문",
+      "확인"
+    ]
+  },
+  {
+    "name": "가슴이 아파요",
+    "category": "의료",
+    "context": "병원",
+    "intention": "정보_전달",
+    "image_url": "https://www.aacmaker.or.kr/api/symbol_display?symidx=SYM_2312&centeridx=CEN_8",
+    "valid_for_intents": [
+      "질문",
+      "확인"
+    ]
+  },
+  {
+    "name": "이가 빠졌어요",
+    "category": "의료",
+    "context": "병원",
+    "intention": "정보_전달",
+    "image_url": "https://www.aacmaker.or.kr/api/symbol_display?symidx=SYM_1070&centeridx=CEN_3",
+    "valid_for_intents": [
+      "질문",
+      "확인"
+    ]
+  },
+  {
+    "name": "습진이 생겼어요",
+    "category": "의료",
+    "context": "병원",
+    "intention": "정보_전달",
+    "image_url": "https://www.aacmaker.or.kr/api/symbol_display?symidx=SYM_1066&centeridx=CEN_3",
+    "valid_for_intents": [
+      "질문",
+      "확인"
+    ]
+  },
+  {
+    "name": "눈병이 난 것 같아요",
+    "category": "의료",
+    "context": "병원",
+    "intention": "정보_전달",
+    "image_url": "https://www.aacmaker.or.kr/api/symbol_display?symidx=SYM_1360&centeridx=CEN_3",
+    "valid_for_intents": [
+      "질문",
+      "확인"
+    ]
+  },
+  {
+    "name": "진료 예약 해주세요",
+    "category": "의료",
+    "context": "병원",
+    "intention": "요청",
+    "image_url": "https://www.aacmaker.or.kr/api/symbol_display?symidx=SYM_1298&centeridx=CEN_3",
+    "valid_for_intents": [
+      "질문"
+    ]
+  },
+  {
+    "name": "링거를 맞아요",
+    "category": "의료",
+    "context": "병원",
+    "intention": "정보_전달",
+    "image_url": "https://www.aacmaker.or.kr/api/symbol_display?symidx=SYM_2319&centeridx=CEN_8",
+    "valid_for_intents": [
+      "질문",
+      "확인"
+    ]
+  },
+  {
+    "name": "물리치료를 받아요",
+    "category": "의료",
+    "context": "병원",
+    "intention": "정보_전달",
+    "image_url": "https://www.aacmaker.or.kr/api/symbol_display?symidx=SYM_2025&centeridx=CEN_8",
+    "valid_for_intents": [
+      "질문",
+      "확인"
+    ]
+  },
+  {
+    "name": "맛없어요",
+    "category": "식당",
+    "context": "식당",
+    "intention": "감정_표현",
+    "image_url": "https://www.aacmaker.or.kr/api/symbol_display?symidx=SYM_1136&centeridx=CEN_3",
+    "valid_for_intents": [
+      "질문",
+      "확인"
+    ]
+  },
+  {
+    "name": "음식이 짜요",
+    "category": "식당",
+    "context": "식당",
+    "intention": "정보_전달",
+    "image_url": "https://www.aacmaker.or.kr/api/symbol_display?symidx=SYM_1125&centeridx=CEN_3",
+    "valid_for_intents": [
+      "질문",
+      "확인"
+    ]
+  },
+  {
+    "name": "음식이 매워요",
+    "category": "식당",
+    "context": "식당",
+    "intention": "정보_전달",
+    "image_url": "https://www.aacmaker.or.kr/api/symbol_display?symidx=SYM_1124&centeridx=CEN_3",
+    "valid_for_intents": [
+      "질문",
+      "확인"
+    ]
+  },
+  {
+    "name": "맥주 주세요",
+    "category": "식당",
+    "context": "식당",
+    "intention": "요청",
+    "image_url": "https://www.aacmaker.or.kr/api/symbol_display?symidx=SYM_1129&centeridx=CEN_3",
+    "valid_for_intents": [
+      "인사",
+      "질문"
+    ]
+  },
+  {
+    "name": "콜라 주세요",
+    "category": "식당",
+    "context": "식당",
+    "intention": "요청",
+    "image_url": "https://www.aacmaker.or.kr/api/symbol_display?symidx=SYM_1127&centeridx=CEN_3",
+    "valid_for_intents": [
+      "인사",
+      "질문"
+    ]
+  },
+  {
+    "name": "사이다 주세요",
+    "category": "식당",
+    "context": "식당",
+    "intention": "요청",
+    "image_url": "https://www.aacmaker.or.kr/api/symbol_display?symidx=SYM_1128&centeridx=CEN_3",
+    "valid_for_intents": [
+      "인사",
+      "질문"
+    ]
   }
 ]

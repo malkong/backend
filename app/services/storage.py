@@ -84,6 +84,7 @@ def init_db() -> bool:
                 "  context VARCHAR(32) NOT NULL,"
                 "  intention VARCHAR(32) NULL,"
                 "  image_url VARCHAR(512) NULL,"
+                "  valid_for_intents JSON NULL,"
                 "  UNIQUE KEY uq_card_name (name)"
                 ") CHARACTER SET utf8mb4"
             )
@@ -152,8 +153,12 @@ def _seed_cards(cur) -> None:
     """cards_catalog.json을 cards 테이블에 idempotent 적재. intention=NULL 그대로 적재.
 
     image_url은 embeddable 썸네일 형식으로 정규화(_normalize_image_url)해서 저장한다.
-    이미 시딩된 기존 행도 매 startup마다 정규화된 값으로 UPDATE한다(과거에 원본
-    구글드라이브 '보기' 링크로 저장된 데이터를 재시딩 없이 자동 교정하기 위함).
+    이미 시딩된 기존 행도 매 startup마다 정규화된 값(image_url/valid_for_intents)으로
+    UPDATE한다(과거에 원본 구글드라이브 '보기' 링크로 저장된 데이터, 또는 카탈로그
+    파일에서만 갱신된 valid_for_intents를 재시딩 없이 자동 교정하기 위함).
+
+    valid_for_intents: 카드가 응답으로 적절한 "상대방 intent" 리스트. JSON 배열로 저장.
+    카탈로그 파일의 intention과는 축이 다르므로 별도 컬럼(매핑에는 이 필드만 사용).
     """
     try:
         with open(CATALOG_PATH, encoding="utf-8") as f:
@@ -168,18 +173,19 @@ def _seed_cards(cur) -> None:
             c.get("context"),
             c.get("intention"),  # None이면 NULL로 적재
             _normalize_image_url(c.get("image_url")),
+            json.dumps(c.get("valid_for_intents") or [], ensure_ascii=False),
         )
         for c in catalog
     ]
     cur.executemany(
-        "INSERT IGNORE INTO cards (name, category, context, intention, image_url) "
-        "VALUES (%s, %s, %s, %s, %s)",
+        "INSERT IGNORE INTO cards (name, category, context, intention, image_url, valid_for_intents) "
+        "VALUES (%s, %s, %s, %s, %s, %s)",
         rows,
     )
-    # 기존에 이미 적재되어 원본(비정규화) 링크로 저장된 행도 정규화된 값으로 보정.
+    # 기존에 이미 적재된 행도 정규화된 image_url/valid_for_intents로 보정.
     cur.executemany(
-        "UPDATE cards SET image_url = %s WHERE name = %s AND (image_url IS NULL OR image_url != %s)",
-        [(image_url, name, image_url) for name, _, _, _, image_url in rows],
+        "UPDATE cards SET image_url = %s, valid_for_intents = %s WHERE name = %s",
+        [(image_url, tags_json, name) for name, _, _, _, image_url, tags_json in rows],
     )
 
 
@@ -187,7 +193,11 @@ def _seed_cards(cur) -> None:
 # read
 # ---------------------------------------------------------------------------
 def get_cards_for_mapping() -> list[dict]:
-    """cards 테이블 전체 조회. 실패 시 빈 리스트(호출자가 카탈로그 파일로 폴백)."""
+    """cards 테이블 전체 조회. 실패 시 빈 리스트(호출자가 카탈로그 파일로 폴백).
+
+    valid_for_intents는 DB에 JSON 문자열로 저장돼 있어 list로 파싱해 반환한다
+    (카탈로그 파일 폴백 경로는 이미 list이므로 호출자 입장에서 형태가 통일된다).
+    """
     try:
         conn = _connect()
     except Exception as e:
@@ -195,8 +205,15 @@ def get_cards_for_mapping() -> list[dict]:
         return []
     try:
         with conn.cursor(DictCursor) as cur:
-            cur.execute("SELECT id, name, category, context, intention, image_url FROM cards")
-            return list(cur.fetchall())
+            cur.execute(
+                "SELECT id, name, category, context, intention, image_url, "
+                "valid_for_intents FROM cards"
+            )
+            rows = list(cur.fetchall())
+            for row in rows:
+                raw = row.get("valid_for_intents")
+                row["valid_for_intents"] = json.loads(raw) if raw else []
+            return rows
     except Exception:
         logger.warning("get_cards_for_mapping: 조회 실패.", exc_info=True)
         return []
