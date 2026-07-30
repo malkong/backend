@@ -25,3 +25,5 @@ class LoginResponse(BaseModel):
     accessToken: str
     userId: int
     nickname: str
+    # false면 프론트가 온보딩 화면으로 보낸다.
+    isOnboarded: bool

@@ -176,3 +176,87 @@ def record_selection(user_id: int, card, context=None) -> tuple[bool, int]:
             conn.close()
         except Exception:
             pass
+
+
+def record_onboarding(user_id: int, items: list[dict], usage_rows_per_card: int = 4) -> bool:
+    """온보딩 선택을 card_history/usage_log에 기록하고 users.is_onboarded를 세운다.
+
+    record_selection과 같은 SQL 형태를 쓰되, 세 가지가 다르다:
+      1) 카드 여러 장을 executemany로 묶어 **단일 트랜잭션**으로 처리한다.
+      2) card_history의 초기 count가 4이고, 이미 행이 있으면 GREATEST(count, 4)로
+         "최소 4 보장"만 한다(온보딩은 최초 1회뿐이라 누적이 아니다).
+      3) usage_log에 카드당 4행을 INSERT한다 — place_match_count 보너스가
+         count 보너스와 같은 비중으로 작동하려면 이력 행 수가 필요하기 때문이다.
+
+    is_onboarded 갱신을 같은 트랜잭션의 **맨 앞**에서 `WHERE is_onboarded = 0` 가드와
+    함께 수행한다. 동시 요청이 둘 다 409 검사를 통과해도 UPDATE에 성공한 쪽만 남고
+    나머지는 rowcount=0으로 감지되어 롤백된다.
+
+    items: [{"card_id": int, "word": str, "category": str|None, "place": str}, ...]
+    반환: 성공 여부. 이미 온보딩된 유저면 False(호출자가 409로 변환).
+    """
+    if not items:
+        return False
+
+    try:
+        conn = get_legacy_connection()
+    except Exception as e:
+        logger.warning("record_onboarding: DB 연결 실패(%s).", e)
+        return False
+
+    try:
+        with conn.cursor() as cur:
+            # 경합 방어: 이미 온보딩된 유저면 여기서 0행이 되어 아래에서 롤백된다.
+            cur.execute(
+                "UPDATE users SET is_onboarded = 1 WHERE id = %s AND is_onboarded = 0",
+                (user_id,),
+            )
+            if cur.rowcount == 0:
+                conn.rollback()
+                logger.info("record_onboarding: 이미 온보딩된 유저(user_id=%s).", user_id)
+                return False
+
+            history_rows = [
+                (user_id, it["word"], it["card_id"], it.get("category"))
+                for it in items
+            ]
+            cur.executemany(
+                "INSERT INTO card_history (user_id, word, card_id, category, count, last_used) "
+                "VALUES (%s, %s, %s, %s, 4, NOW()) "
+                "ON DUPLICATE KEY UPDATE "
+                "  count = GREATEST(count, 4), "
+                "  last_used = NOW(), "
+                "  word = VALUES(word), "
+                "  category = COALESCE(VALUES(category), category)",
+                history_rows,
+            )
+
+            # intent는 온보딩 시점에 알 수 없으므로 NULL. place는 선택한 context 값.
+            usage_rows = [
+                (user_id, it["word"], it.get("category"), it["card_id"], None, it["place"])
+                for it in items
+                for _ in range(usage_rows_per_card)
+            ]
+            cur.executemany(
+                "INSERT INTO usage_log (user_id, word, category, card_id, intent, place, selected_at) "
+                "VALUES (%s, %s, %s, %s, %s, %s, NOW())",
+                usage_rows,
+            )
+        conn.commit()
+        logger.info(
+            "record_onboarding 완료: user_id=%s, 카드 %d장, usage_log %d행",
+            user_id, len(items), len(items) * usage_rows_per_card,
+        )
+        return True
+    except Exception:
+        logger.warning("record_onboarding: 기록 실패, 롤백.", exc_info=True)
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        raise
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass

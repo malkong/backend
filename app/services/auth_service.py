@@ -59,4 +59,5 @@ def login(db: Session, request: LoginRequest) -> LoginResponse:
         accessToken=create_access_token(user.id),
         userId=user.id,
         nickname=user.nickname,
+        isOnboarded=bool(user.is_onboarded),
     )

@@ -22,6 +22,85 @@ from app.core.database import DictCursor, get_legacy_connection
 logger = logging.getLogger(__name__)
 
 
+def get_contexts() -> list[str]:
+    """cards에 실제로 존재하는 context 값 목록(중복 제거, 사전순). 실패 시 빈 리스트.
+
+    하드코딩하지 않고 DB에서 읽는다 — 카탈로그가 늘어나면 자동으로 반영된다.
+    """
+    try:
+        conn = get_legacy_connection()
+    except Exception as e:
+        logger.warning("get_contexts: DB 연결 실패(%s), 빈 리스트 반환.", e)
+        return []
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT DISTINCT context FROM cards ORDER BY context")
+            return [r[0] for r in cur.fetchall()]
+    except Exception:
+        logger.warning("get_contexts: 조회 실패.", exc_info=True)
+        return []
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+
+def get_cards_by_context(context: str) -> list[dict]:
+    """해당 context의 카드 전체. 실패/없음이면 빈 리스트."""
+    try:
+        conn = get_legacy_connection()
+    except Exception as e:
+        logger.warning("get_cards_by_context: DB 연결 실패(%s), 빈 리스트 반환.", e)
+        return []
+    try:
+        with conn.cursor(DictCursor) as cur:
+            cur.execute(
+                "SELECT id, name, category, context, image_url FROM cards "
+                "WHERE context=%s ORDER BY id",
+                (context,),
+            )
+            return list(cur.fetchall())
+    except Exception:
+        logger.warning("get_cards_by_context: 조회 실패.", exc_info=True)
+        return []
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+
+def get_cards_by_ids(card_ids: list[int]) -> list[dict]:
+    """주어진 id들의 카드를 조회한다(존재 검증 + word/category 확보용).
+
+    존재하지 않는 id는 결과에 없다 — 호출자가 요청 id와 대조해 400을 낸다.
+    """
+    if not card_ids:
+        return []
+    try:
+        conn = get_legacy_connection()
+    except Exception as e:
+        logger.warning("get_cards_by_ids: DB 연결 실패(%s), 빈 리스트 반환.", e)
+        return []
+    try:
+        with conn.cursor(DictCursor) as cur:
+            placeholders = ",".join(["%s"] * len(card_ids))
+            cur.execute(
+                f"SELECT id, name, category, context FROM cards WHERE id IN ({placeholders})",
+                tuple(card_ids),
+            )
+            return list(cur.fetchall())
+    except Exception:
+        logger.warning("get_cards_by_ids: 조회 실패.", exc_info=True)
+        return []
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+
 def get_cards_for_mapping() -> list[dict]:
     """cards 테이블 전체 조회. 실패 시 빈 리스트(호출자가 카탈로그 파일로 폴백).
 
