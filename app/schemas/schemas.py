@@ -70,7 +70,7 @@ class TranscribeResponse(BaseModel):
 class SelectCard(BaseModel):
     word: str
     category: Optional[str] = None
-    card_id: Optional[int] = None  # 없으면 NULL 저장 (문자열 더미 금지)
+    card_id: int  # 필수. 개인화 이력의 카운팅 키가 (user_id, card_id)이므로 생략 불가.
 
 
 class SelectContext(BaseModel):

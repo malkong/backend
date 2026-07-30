@@ -25,14 +25,18 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # read
 # ---------------------------------------------------------------------------
-def get_usage_counts(user_id: int, word: str, intent=None, place=None) -> dict:
-    """(user_id, word) 기준 count/intent_match/place_match 집계. 실패 시 zeros.
+def get_usage_counts(user_id: int, card_id: int, intent=None, place=None) -> dict:
+    """(user_id, card_id) 기준 count/intent_match/place_match 집계. 실패 시 zeros.
+
+    카드의 정체성은 card_id다(예전에는 word였으나 이름이 바뀌거나 중복되면 깨졌다).
 
     - count: card_history.count (전역 누적 선택 횟수).
     - intent_match_count: usage_log 중 현재 intent와 일치하는 행 수(intent=None이면 0).
     - place_match_count: usage_log 중 현재 place와 일치하는 행 수(place=None/미기록 제외).
     """
     zeros = {"count": 0, "intent_match_count": 0, "place_match_count": 0}
+    if card_id is None:
+        return zeros
     try:
         conn = get_legacy_connection()
     except Exception:
@@ -40,8 +44,8 @@ def get_usage_counts(user_id: int, word: str, intent=None, place=None) -> dict:
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT count FROM card_history WHERE user_id=%s AND word=%s",
-                (user_id, word),
+                "SELECT count FROM card_history WHERE user_id=%s AND card_id=%s",
+                (user_id, card_id),
             )
             row = cur.fetchone()
             count = int(row[0]) if row else 0
@@ -50,8 +54,8 @@ def get_usage_counts(user_id: int, word: str, intent=None, place=None) -> dict:
             if intent:
                 cur.execute(
                     "SELECT COUNT(*) FROM usage_log "
-                    "WHERE user_id=%s AND word=%s AND intent=%s AND intent IS NOT NULL",
-                    (user_id, word, intent),
+                    "WHERE user_id=%s AND card_id=%s AND intent=%s AND intent IS NOT NULL",
+                    (user_id, card_id, intent),
                 )
                 intent_match = int(cur.fetchone()[0])
 
@@ -59,8 +63,8 @@ def get_usage_counts(user_id: int, word: str, intent=None, place=None) -> dict:
             if place:
                 cur.execute(
                     "SELECT COUNT(*) FROM usage_log "
-                    "WHERE user_id=%s AND word=%s AND place=%s AND place IS NOT NULL",
-                    (user_id, word, place),
+                    "WHERE user_id=%s AND card_id=%s AND place=%s AND place IS NOT NULL",
+                    (user_id, card_id, place),
                 )
                 place_match = int(cur.fetchone()[0])
 
@@ -89,7 +93,7 @@ def get_top_cards(user_id: int, limit: int = 20) -> list[dict]:
         with conn.cursor(DictCursor) as cur:
             cur.execute(
                 "SELECT word, category, count, card_id FROM card_history "
-                "WHERE user_id=%s ORDER BY count DESC, word ASC LIMIT %s",
+                "WHERE user_id=%s ORDER BY count DESC, card_id ASC LIMIT %s",
                 (user_id, limit),
             )
             return list(cur.fetchall())
@@ -109,14 +113,21 @@ def get_top_cards(user_id: int, limit: int = 20) -> list[dict]:
 def record_selection(user_id: int, card, context=None) -> tuple[bool, int]:
     """card_history UPSERT + usage_log INSERT를 단일 트랜잭션으로 기록.
 
-    card.card_id가 없으면 NULL 저장(문자열 더미 금지). 실패 시 (False, 0) 반환, 예외 전파 없음.
+    카운팅 키는 (user_id, card_id)다. card_id가 없으면 기록하지 않고 (False, 0)을 반환한다
+    (card_history.card_id / usage_log.card_id가 NOT NULL이므로 저장 자체가 불가능).
+    word/category는 키가 아니라 표시·디버깅용이지만 매번 최신 값으로 갱신한다.
+
+    실패 시 (False, 0) 반환, 예외 전파 없음.
     반환: (성공 여부, 갱신된 card_history.count).
     """
+    card_id = getattr(card, "card_id", None)
+    if card_id is None:
+        logger.warning("record_selection: card_id가 없어 기록을 건너뜁니다.")
+        return False, 0
     word = getattr(card, "word", None)
     if not word:
         return False, 0
     category = getattr(card, "category", None)
-    card_id = getattr(card, "card_id", None)
     intent = getattr(context, "intent", None) if context is not None else None
     place = getattr(context, "place", None) if context is not None else None
 
@@ -129,12 +140,14 @@ def record_selection(user_id: int, card, context=None) -> tuple[bool, int]:
     try:
         with conn.cursor() as cur:
             cur.execute(
+                # UNIQUE 키가 (user_id, card_id)이므로 ON DUPLICATE는 그 키로 걸린다.
+                # word/category는 키가 아니므로 최신 값으로 계속 갱신한다(카드 이름 변경 반영).
                 "INSERT INTO card_history (user_id, word, card_id, category, count, last_used) "
                 "VALUES (%s, %s, %s, %s, 1, NOW()) "
                 "ON DUPLICATE KEY UPDATE "
                 "  count = count + 1, "
                 "  last_used = NOW(), "
-                "  card_id = COALESCE(VALUES(card_id), card_id), "
+                "  word = VALUES(word), "
                 "  category = COALESCE(VALUES(category), category)",
                 (user_id, word, card_id, category),
             )
@@ -144,8 +157,8 @@ def record_selection(user_id: int, card, context=None) -> tuple[bool, int]:
                 (user_id, word, category, card_id, intent, place),
             )
             cur.execute(
-                "SELECT count FROM card_history WHERE user_id=%s AND word=%s",
-                (user_id, word),
+                "SELECT count FROM card_history WHERE user_id=%s AND card_id=%s",
+                (user_id, card_id),
             )
             row = cur.fetchone()
             new_count = int(row[0]) if row else 0

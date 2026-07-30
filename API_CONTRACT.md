@@ -109,7 +109,7 @@ INTENT_LABELS = ["인사", "질문", "요청", "제안", "정보_전달", "감�
 
 - `cards`는 score 내림차순 정렬되어 반환 (상위 8개)
 - `word`: 단어/구 하나 (AAC 카드 하나)
-- `card_id`: 카탈로그 카드 고유번호(숫자). 아직 매핑 안 된 경우 `null` (문자열 더미 없음)
+- `card_id`: 카탈로그 카드 고유번호(숫자, **항상 존재**). DB 조회 실패로 카탈로그 파일 폴백을 타도 파일에 심어둔 동일한 id가 반환된다
 - `image_url`: 카드 이미지 URL(없으면 `null`)
 - `source`: `"card_db"` (카탈로그 매핑)
 - 문장 조합은 **앱/다른 팀원 담당**
@@ -139,7 +139,8 @@ INTENT_LABELS = ["인사", "질문", "요청", "제안", "정보_전달", "감�
 { "ok": true, "new_count": 5 }
 ```
 
-> `card_id`는 옵션(숫자). 값이 없으면 서버가 **NULL로 저장**한다(문자열 더미 없음). 카운팅 키는 `(user_id, word)`이며 card_id는 조인에 쓰이지 않는 메타데이터다 — 나중에 실제 값이 오면 UPSERT의 COALESCE로 자동 채워진다.
+> **`card_id`는 필수(숫자)다.** 카운팅 키가 `(user_id, card_id)`이므로 생략하면 **422**(Pydantic 검증 실패)로 거부된다. `/analyze` 응답의 `card_id`를 그대로 넘기면 된다.
+> `word`/`category`는 키가 아니라 표시·디버깅용이며, 선택할 때마다 최신 값으로 갱신된다(카드 이름이 바뀌어도 이력이 끊기지 않는다).
 > 개인화 이력은 MySQL에 저장된다: `card_history` 테이블(집계, 카운팅 키 `(user_id, word)`)과 `usage_log` 테이블(선택 시점의 intent/place까지 남기는 이벤트 로그)에 함께 기록된다.
 > DB 쓰기 실패 시에도 `/select`는 500을 내지 않고 `{ "ok": false, "new_count": 0 }`을 200으로 반환한다(graceful degradation).
 >
@@ -160,12 +161,13 @@ INTENT_LABELS = ["인사", "질문", "요청", "제안", "정보_전달", "감�
   "top_cards": [
     { "word": "진통제를 주세요", "category": "의료", "count": 31, "card_id": 61 },
     { "word": "머리가 아파요",   "category": "의료", "count": 15, "card_id": 19 },
-    { "word": "네",            "category": "인사", "count":  3, "card_id": null }
+    { "word": "네",            "category": "인사", "count":  3, "card_id": 15 }
   ]
 }
 ```
 
-> `user_id`는 숫자, `card_id`는 숫자 또는 `null`(문자열 더미 없음).
+> `user_id`, `card_id` 모두 숫자다. `card_id`는 개인화 이력의 카운팅 키라 `null`이 될 수 없다.
+> `word`/`category`는 표시용이며 카드 이름이 바뀌면 최신 값으로 갱신된다.
 
 ---
 
@@ -198,4 +200,4 @@ INTENT_LABELS = ["인사", "질문", "요청", "제안", "정보_전달", "감�
 }
 ```
 
-> `context`가 place(한글 7종), `intention`이 intent 라벨. `card_generator.py`가 이 필드를 그대로 매핑 tier 산출에 사용하며, 응답의 `card_id`는 `cards` 테이블의 AUTO_INCREMENT id(카탈로그 파일 폴백 시에는 `null`).
+> `context`가 place(한글 7종), `intention`이 intent 라벨. `card_generator.py`가 이 필드를 그대로 매핑 tier 산출에 사용하며, 응답의 `card_id`는 `cards` 테이블의 id이며, 카탈로그 파일에도 동일한 id가 `"id"` 필드로 심어져 있어 폴백 시에도 같은 값이 나온다.

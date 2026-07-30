@@ -28,10 +28,18 @@ def _load_catalog_cards() -> list[dict]:
     try:
         with open(CATALOG_PATH, encoding="utf-8") as f:
             catalog = json.load(f)
-        # 파일 폴백은 DB id가 없으므로 card_id=None. image_url은 DB 시딩 경로와
-        # 동일하게 정규화(구글드라이브 보기 링크 -> 임베드 가능한 썸네일)해서 반환.
+        # 카탈로그 파일에는 DB cards.id와 동일한 "id"가 심어져 있다(seed가 그 id로 적재).
+        # 따라서 폴백 경로에서도 card_id가 DB와 같은 값으로 채워진다.
+        # image_url은 DB 시딩 경로와 동일하게 정규화(구글드라이브 보기 링크 -> 썸네일)해서 반환.
+        missing_id = [c.get("name") for c in catalog if c.get("id") is None]
+        if missing_id:
+            logger.warning(
+                "카탈로그 파일에 id가 없는 카드 %d장은 제외합니다: %s",
+                len(missing_id),
+                missing_id[:5],
+            )
+        catalog = [c for c in catalog if c.get("id") is not None]
         for c in catalog:
-            c.setdefault("id", None)
             c["image_url"] = normalize_image_url(c.get("image_url"))
         return catalog
     except Exception:
