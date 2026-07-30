@@ -16,14 +16,21 @@ import json
 import logging
 from pathlib import Path
 
-from app.core.database import get_legacy_connection, get_legacy_db_name
+from app.core.database import engine, get_legacy_connection, get_legacy_db_name
+from app.core.security import hash_password
 from app.core.utils import normalize_image_url
+from app.models.user import User
 
 logger = logging.getLogger(__name__)
 
 CATALOG_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "cards_catalog.json"
 
+# AAC 개인화용 데모 계정. card_history/usage_log가 users.id를 FK로 참조하므로 이 행이
+# 없으면 /select가 FK 위반으로 전부 실패한다.
 DEMO_USER_ID = 1
+DEMO_USER_EMAIL = "tester@gmail.com"
+DEMO_USER_PASSWORD = "demo1234"
+DEMO_USER_NICKNAME = "테스터"
 
 
 def init_db() -> bool:
@@ -52,11 +59,9 @@ def init_db() -> bool:
                     "CREATE DATABASE 생략(%s). 이미 존재하는 `%s`를 사용합니다.", e, db_name
                 )
             cur.execute(f"USE `{db_name}`")
-            cur.execute(
-                "CREATE TABLE IF NOT EXISTS users ("
-                "  id BIGINT PRIMARY KEY"
-                ") CHARACTER SET utf8mb4"
-            )
+            # users의 DDL은 models/user.py가 단일 정의 원천이다. 아래 테이블들이
+            # users.id를 FK로 참조하므로 반드시 먼저 생성한다.
+            User.__table__.create(bind=engine, checkfirst=True)
             cur.execute(
                 "CREATE TABLE IF NOT EXISTS cards ("
                 "  id BIGINT AUTO_INCREMENT PRIMARY KEY,"
@@ -95,7 +100,7 @@ def init_db() -> bool:
                 "  CONSTRAINT fk_usage_user FOREIGN KEY (user_id) REFERENCES users(id)"
                 ") CHARACTER SET utf8mb4"
             )
-            cur.execute("INSERT IGNORE INTO users (id) VALUES (%s)", (DEMO_USER_ID,))
+            _seed_demo_user(cur)
             seed_cards(cur)
         conn.commit()
         logger.info("init_db 완료 (DB=%s)", db_name)
@@ -112,6 +117,24 @@ def init_db() -> bool:
             conn.close()
         except Exception:
             pass
+
+
+def _seed_demo_user(cur) -> None:
+    """데모 유저(id=1) 생성
+    """
+    cur.execute("SELECT 1 FROM users WHERE id=%s", (DEMO_USER_ID,))
+    if cur.fetchone():
+        return
+    cur.execute(
+        "INSERT INTO users (id, email, password, nickname) VALUES (%s, %s, %s, %s)",
+        (
+            DEMO_USER_ID,
+            DEMO_USER_EMAIL,
+            hash_password(DEMO_USER_PASSWORD),
+            DEMO_USER_NICKNAME,
+        ),
+    )
+    logger.info("데모 유저(id=%s) 생성 완료.", DEMO_USER_ID)
 
 
 def seed_cards(cur) -> None:

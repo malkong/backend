@@ -1,9 +1,11 @@
 """POST /analyze — 의도분석 + 카탈로그 매핑 + 개인화 재정렬."""
 import logging
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
+from app.deps import get_current_user
+from app.models.user import User
 from app.schemas.schemas import AnalyzeRequest, AnalyzeResponse
 from app.services import personalize
 from app.services.card_generator import get_candidate_cards
@@ -21,12 +23,12 @@ def _extract_place(visual_context):
 
 
 @router.post("/analyze", response_model=AnalyzeResponse)
-def analyze(request: AnalyzeRequest):
+def analyze(request: AnalyzeRequest, user: User = Depends(get_current_user)):
     try:
         analysis = analyze_intent(request.speech_text)
         place = _extract_place(request.visual_context)
-        cards = get_candidate_cards(analysis, request.user_id, place)
-        cards = personalize.rerank(cards, request.user_id, analysis.intent, place)
+        cards = get_candidate_cards(analysis, user.id, place)
+        cards = personalize.rerank(cards, user.id, analysis.intent, place)
         return AnalyzeResponse(analysis=analysis, cards=cards)
     except Exception as e:
         # card_generator/personalize가 자체적으로 예외를 삼키므로 여기 도달은 드묾.
