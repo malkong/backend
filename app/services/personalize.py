@@ -4,12 +4,12 @@
                  + INTENT_WEIGHT×intent_match_count + PLACE_WEIGHT×place_match_count
 가중치/상한/tier 값은 scoring_constants.py 단일 소스에서 import(하드코딩 금지).
 
-graceful degradation: storage 조회 실패 시 모든 보너스 0 → 원본 base_rank 순서 유지, 예외 전파 금지.
+graceful degradation: 리포지토리 조회 실패 시 모든 보너스 0 → 원본 base_rank 순서 유지, 예외 전파 금지.
 """
 import logging
 
+from app.repositories import history_repository
 from app.schemas.schemas import Card, PLACE_LABELS
-from app.services import storage
 from app.services.scoring_constants import (
     COUNT_BONUS_CAP,
     COUNT_WEIGHT,
@@ -26,7 +26,7 @@ def rerank(cards: list[Card], user_id: int, intent=None, place=None) -> list[Car
     """개인화 점수로 카드를 재정렬. 입력 card.score를 base_rank로 취급한다.
 
     - place가 None/한글 7종 밖/'공통'이면 place 보너스 미적용(unknown끼리 매칭 금지).
-    - storage 실패 시 보너스 0으로 원본 순서 유지, 500 없이 원본 반환.
+    - 리포지토리 실패 시 보너스 0으로 원본 순서 유지, 500 없이 원본 반환.
     """
     if not cards:
         return cards
@@ -35,7 +35,9 @@ def rerank(cards: list[Card], user_id: int, intent=None, place=None) -> list[Car
         scored: list[tuple[float, object, str, Card]] = []
         for card in cards:
             base_rank = card.score  # card_generator가 base_rank로 세팅
-            counts = storage.get_usage_counts(user_id, card.word, intent, place_active)
+            counts = history_repository.get_usage_counts(
+                user_id, card.word, intent, place_active
+            )
             count = counts.get("count", 0)
             intent_match = counts.get("intent_match_count", 0)
             place_match = counts.get("place_match_count", 0)

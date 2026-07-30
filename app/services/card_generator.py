@@ -7,9 +7,9 @@ import json
 import logging
 from pathlib import Path
 
+from app.core.utils import normalize_image_url
+from app.repositories import card_repository
 from app.schemas.schemas import AnalysisResult, Card, PLACE_LABELS
-from app.services import storage
-from app.services.storage import _normalize_image_url
 from app.services.scoring_constants import BASE_RANK_TIERS
 
 logger = logging.getLogger(__name__)
@@ -21,8 +21,8 @@ COMMON_CONTEXT = "공통"
 
 
 def _load_catalog_cards() -> list[dict]:
-    """1차: storage(cards 테이블). 실패/빈 결과 시 2차: cards_catalog.json 직접 로드."""
-    cards = storage.get_cards_for_mapping()
+    """1차: card_repository(cards 테이블). 실패/빈 결과 시 2차: cards_catalog.json 직접 로드."""
+    cards = card_repository.get_cards_for_mapping()
     if cards:
         return cards
     try:
@@ -32,7 +32,7 @@ def _load_catalog_cards() -> list[dict]:
         # 동일하게 정규화(구글드라이브 보기 링크 -> 임베드 가능한 썸네일)해서 반환.
         for c in catalog:
             c.setdefault("id", None)
-            c["image_url"] = _normalize_image_url(c.get("image_url"))
+            c["image_url"] = normalize_image_url(c.get("image_url"))
         return catalog
     except Exception:
         logger.warning("카탈로그 파일 로드 실패, 빈 후보 반환.", exc_info=True)
