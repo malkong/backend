@@ -259,6 +259,11 @@ INTENT_LABELS = ["인사", "질문", "요청", "제안", "정보_전달", "감�
 `card_id`는 별도 컬럼으로 저장하며, MVP에서는 더미 값(`tmp_<word>`)을 채우고
 AAC 팀원 모듈 연동 후 실제 카드 고유번호로 자동 교체한다.
 
+> ⚠️ **아래 DDL은 기획 당시(v1) 안이며 현행 스키마가 아니다.** 실제 스키마는
+> `data/schema.sql`을 볼 것. 주요 차이: `user_id`/`card_id`는 `BIGINT`,
+> `card_id`는 `NOT NULL`, 그리고 **카운팅 키는 `uq_user_word (user_id, word)`가 아니라
+> `uq_user_card (user_id, card_id)`** 다(카드 이름 변경·중복에 깨지지 않게 하기 위함).
+
 ```sql
 CREATE TABLE IF NOT EXISTS card_history (
   id        BIGINT AUTO_INCREMENT PRIMARY KEY,

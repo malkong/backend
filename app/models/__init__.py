@@ -8,7 +8,7 @@ TODO(2차 리팩터링): 아직 3개 테이블이 남아 있다.
   app.core.database.Base를 상속시킨다.
 
     Card        <- cards           (valid_for_intents는 JSON 컬럼)
-    CardHistory <- card_history    (UNIQUE (user_id, word))
+    CardHistory <- card_history    (UNIQUE (user_id, card_id))
     UsageLog    <- usage_log
 
   정의 후에는 data/schema.sql과 core/seed.py의 CREATE TABLE 문자열을 걷어내고,

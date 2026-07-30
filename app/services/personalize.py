@@ -36,7 +36,7 @@ def rerank(cards: list[Card], user_id: int, intent=None, place=None) -> list[Car
         for card in cards:
             base_rank = card.score  # card_generator가 base_rank로 세팅
             counts = history_repository.get_usage_counts(
-                user_id, card.word, intent, place_active
+                user_id, card.card_id, intent, place_active
             )
             count = counts.get("count", 0)
             intent_match = counts.get("intent_match_count", 0)

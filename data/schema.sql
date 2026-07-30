@@ -1,8 +1,9 @@
 -- AAC Mode 2 — DB 스키마 (선택적 엄격, Selective Strictness 단일 DDL)
 -- 제약(FK/NOT NULL)은 "항상 값이 보장되는 컬럼에만" 건다.
 --   FK   : card_history.user_id -> users.id, usage_log.user_id -> users.id (2개만)
---   NOTNULL: cards.name/category/context, 로그의 user_id/word
---   nullable & FK 없음: 모든 card_id, cards.intention, usage_log.intent/place
+--   NOTNULL: cards.name/category/context, 로그의 user_id/word/card_id
+--   nullable & FK 없음: cards.intention, usage_log.intent/place
+--   card_id는 NOT NULL이지만 cards로의 FK는 걸지 않는다(카탈로그 재적재 시 잠금 회피).
 -- storage.init_db()가 이 스키마를 참조하지 않고 코드에서 직접 생성하지만,
 -- 문서/수동 초기화용으로 동일 DDL을 여기에 보존한다.
 
@@ -32,26 +33,28 @@ CREATE TABLE IF NOT EXISTS cards (
   UNIQUE KEY uq_card_name (name)
 ) CHARACTER SET utf8mb4;
 
--- 집계 테이블. 카운팅 키 (user_id, word). card_id는 FK 없음·nullable.
+-- 집계 테이블. 카운팅 키 (user_id, card_id). card_id는 NOT NULL이지만 cards로의 FK는 걸지 않는다.
+-- word/category는 키가 아니라 표시·디버깅용이며 선택할 때마다 최신 값으로 갱신된다.
 CREATE TABLE IF NOT EXISTS card_history (
   id        BIGINT AUTO_INCREMENT PRIMARY KEY,
   user_id   BIGINT       NOT NULL,
   word      VARCHAR(64)  NOT NULL,
-  card_id   BIGINT       NULL,
+  card_id   BIGINT       NOT NULL,
   category  VARCHAR(32)  NULL,
   count     INT          NOT NULL DEFAULT 0,
   last_used DATETIME     NULL,
-  UNIQUE KEY uq_user_word (user_id, word),
+  UNIQUE KEY uq_user_card (user_id, card_id),
   CONSTRAINT fk_history_user FOREIGN KEY (user_id) REFERENCES users(id)
 ) CHARACTER SET utf8mb4;
 
--- 이벤트 로그(append-only). card_id는 FK 없음·nullable. place는 한글 7종 값 도메인.
+-- 이벤트 로그(append-only). card_id는 FK 없음·NOT NULL. place는 한글 7종 값 도메인.
+-- card_id를 NOT NULL로 둔 이유: intent/place 집계가 card_id 기준이라, NULL이면 조용히 누락된다.
 CREATE TABLE IF NOT EXISTS usage_log (
   id          BIGINT AUTO_INCREMENT PRIMARY KEY,
   user_id     BIGINT       NOT NULL,
   word        VARCHAR(64)  NOT NULL,
   category    VARCHAR(32)  NULL,
-  card_id     BIGINT       NULL,
+  card_id     BIGINT       NOT NULL,
   intent      VARCHAR(16)  NULL,
   place       VARCHAR(32)  NULL,
   selected_at DATETIME     NULL,

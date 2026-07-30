@@ -75,15 +75,16 @@ def init_db() -> bool:
                 ") CHARACTER SET utf8mb4"
             )
             cur.execute(
+                # 카운팅 키는 (user_id, card_id). word/category는 표시·디버깅용으로만 남긴다.
                 "CREATE TABLE IF NOT EXISTS card_history ("
                 "  id BIGINT AUTO_INCREMENT PRIMARY KEY,"
                 "  user_id BIGINT NOT NULL,"
                 "  word VARCHAR(64) NOT NULL,"
-                "  card_id BIGINT NULL,"
+                "  card_id BIGINT NOT NULL,"
                 "  category VARCHAR(32) NULL,"
                 "  count INT NOT NULL DEFAULT 0,"
                 "  last_used DATETIME NULL,"
-                "  UNIQUE KEY uq_user_word (user_id, word),"
+                "  UNIQUE KEY uq_user_card (user_id, card_id),"
                 "  CONSTRAINT fk_history_user FOREIGN KEY (user_id) REFERENCES users(id)"
                 ") CHARACTER SET utf8mb4"
             )
@@ -93,7 +94,7 @@ def init_db() -> bool:
                 "  user_id BIGINT NOT NULL,"
                 "  word VARCHAR(64) NOT NULL,"
                 "  category VARCHAR(32) NULL,"
-                "  card_id BIGINT NULL,"
+                "  card_id BIGINT NOT NULL,"
                 "  intent VARCHAR(16) NULL,"
                 "  place VARCHAR(32) NULL,"
                 "  selected_at DATETIME NULL,"
@@ -156,6 +157,7 @@ def seed_cards(cur) -> None:
         return
     rows = [
         (
+            c.get("id"),  # 파일의 id를 그대로 적재 — 파일 폴백 경로의 card_id와 DB id가 일치해야 한다
             c.get("name"),
             c.get("category"),
             c.get("context"),
@@ -166,12 +168,12 @@ def seed_cards(cur) -> None:
         for c in catalog
     ]
     cur.executemany(
-        "INSERT IGNORE INTO cards (name, category, context, intention, image_url, valid_for_intents) "
-        "VALUES (%s, %s, %s, %s, %s, %s)",
+        "INSERT IGNORE INTO cards (id, name, category, context, intention, image_url, valid_for_intents) "
+        "VALUES (%s, %s, %s, %s, %s, %s, %s)",
         rows,
     )
     # 기존에 이미 적재된 행도 정규화된 image_url/valid_for_intents로 보정.
     cur.executemany(
         "UPDATE cards SET image_url = %s, valid_for_intents = %s WHERE name = %s",
-        [(image_url, tags_json, name) for name, _, _, _, image_url, tags_json in rows],
+        [(image_url, tags_json, name) for _, name, _, _, _, image_url, tags_json in rows],
     )

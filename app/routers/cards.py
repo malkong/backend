@@ -9,14 +9,45 @@ TODO(2차 리팩터링): 이 라우터는 repositories를 직접 호출한다(Co
     main.py의 구조를 그대로 옮긴 결과다. 2차에서 services/에 선택 기록·프로필
     조회 유스케이스를 만들어 그쪽을 경유하도록 정리한다.
 """
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.deps import get_current_user
 from app.models.user import User
-from app.repositories import history_repository
+from app.repositories import card_repository, history_repository
+from app.schemas.cards import CardListResponse, CatalogCard, ContextsResponse
 from app.schemas.schemas import ProfileResponse, SelectRequest, SelectResponse
+from app.services import onboarding_service
 
 router = APIRouter(tags=["cards"])
+
+
+@router.get("/cards/contexts", response_model=ContextsResponse)
+def contexts():
+    """온보딩 Step 1용 장소 목록. cards 테이블의 실제 값에서 읽는다(하드코딩 아님)."""
+    return ContextsResponse(contexts=onboarding_service.list_contexts())
+
+
+@router.get("/cards", response_model=CardListResponse)
+def cards(context: str = Query(..., description="cards.context 값 (예: 병원)")):
+    rows = card_repository.get_cards_by_context(context)
+    if not rows:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"해당 context의 카드가 없습니다: {context}",
+        )
+    return CardListResponse(
+        context=context,
+        cards=[
+            CatalogCard(
+                card_id=r["id"],
+                name=r["name"],
+                category=r["category"],
+                context=r["context"],
+                image_url=r.get("image_url"),
+            )
+            for r in rows
+        ],
+    )
 
 
 @router.post("/select", response_model=SelectResponse)

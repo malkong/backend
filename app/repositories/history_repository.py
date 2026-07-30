@@ -25,14 +25,18 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # read
 # ---------------------------------------------------------------------------
-def get_usage_counts(user_id: int, word: str, intent=None, place=None) -> dict:
-    """(user_id, word) 기준 count/intent_match/place_match 집계. 실패 시 zeros.
+def get_usage_counts(user_id: int, card_id: int, intent=None, place=None) -> dict:
+    """(user_id, card_id) 기준 count/intent_match/place_match 집계. 실패 시 zeros.
+
+    카드의 정체성은 card_id다(예전에는 word였으나 이름이 바뀌거나 중복되면 깨졌다).
 
     - count: card_history.count (전역 누적 선택 횟수).
     - intent_match_count: usage_log 중 현재 intent와 일치하는 행 수(intent=None이면 0).
     - place_match_count: usage_log 중 현재 place와 일치하는 행 수(place=None/미기록 제외).
     """
     zeros = {"count": 0, "intent_match_count": 0, "place_match_count": 0}
+    if card_id is None:
+        return zeros
     try:
         conn = get_legacy_connection()
     except Exception:
@@ -40,8 +44,8 @@ def get_usage_counts(user_id: int, word: str, intent=None, place=None) -> dict:
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT count FROM card_history WHERE user_id=%s AND word=%s",
-                (user_id, word),
+                "SELECT count FROM card_history WHERE user_id=%s AND card_id=%s",
+                (user_id, card_id),
             )
             row = cur.fetchone()
             count = int(row[0]) if row else 0
@@ -50,8 +54,8 @@ def get_usage_counts(user_id: int, word: str, intent=None, place=None) -> dict:
             if intent:
                 cur.execute(
                     "SELECT COUNT(*) FROM usage_log "
-                    "WHERE user_id=%s AND word=%s AND intent=%s AND intent IS NOT NULL",
-                    (user_id, word, intent),
+                    "WHERE user_id=%s AND card_id=%s AND intent=%s AND intent IS NOT NULL",
+                    (user_id, card_id, intent),
                 )
                 intent_match = int(cur.fetchone()[0])
 
@@ -59,8 +63,8 @@ def get_usage_counts(user_id: int, word: str, intent=None, place=None) -> dict:
             if place:
                 cur.execute(
                     "SELECT COUNT(*) FROM usage_log "
-                    "WHERE user_id=%s AND word=%s AND place=%s AND place IS NOT NULL",
-                    (user_id, word, place),
+                    "WHERE user_id=%s AND card_id=%s AND place=%s AND place IS NOT NULL",
+                    (user_id, card_id, place),
                 )
                 place_match = int(cur.fetchone()[0])
 
@@ -89,7 +93,7 @@ def get_top_cards(user_id: int, limit: int = 20) -> list[dict]:
         with conn.cursor(DictCursor) as cur:
             cur.execute(
                 "SELECT word, category, count, card_id FROM card_history "
-                "WHERE user_id=%s ORDER BY count DESC, word ASC LIMIT %s",
+                "WHERE user_id=%s ORDER BY count DESC, card_id ASC LIMIT %s",
                 (user_id, limit),
             )
             return list(cur.fetchall())
@@ -109,14 +113,21 @@ def get_top_cards(user_id: int, limit: int = 20) -> list[dict]:
 def record_selection(user_id: int, card, context=None) -> tuple[bool, int]:
     """card_history UPSERT + usage_log INSERT를 단일 트랜잭션으로 기록.
 
-    card.card_id가 없으면 NULL 저장(문자열 더미 금지). 실패 시 (False, 0) 반환, 예외 전파 없음.
+    카운팅 키는 (user_id, card_id)다. card_id가 없으면 기록하지 않고 (False, 0)을 반환한다
+    (card_history.card_id / usage_log.card_id가 NOT NULL이므로 저장 자체가 불가능).
+    word/category는 키가 아니라 표시·디버깅용이지만 매번 최신 값으로 갱신한다.
+
+    실패 시 (False, 0) 반환, 예외 전파 없음.
     반환: (성공 여부, 갱신된 card_history.count).
     """
+    card_id = getattr(card, "card_id", None)
+    if card_id is None:
+        logger.warning("record_selection: card_id가 없어 기록을 건너뜁니다.")
+        return False, 0
     word = getattr(card, "word", None)
     if not word:
         return False, 0
     category = getattr(card, "category", None)
-    card_id = getattr(card, "card_id", None)
     intent = getattr(context, "intent", None) if context is not None else None
     place = getattr(context, "place", None) if context is not None else None
 
@@ -129,12 +140,14 @@ def record_selection(user_id: int, card, context=None) -> tuple[bool, int]:
     try:
         with conn.cursor() as cur:
             cur.execute(
+                # UNIQUE 키가 (user_id, card_id)이므로 ON DUPLICATE는 그 키로 걸린다.
+                # word/category는 키가 아니므로 최신 값으로 계속 갱신한다(카드 이름 변경 반영).
                 "INSERT INTO card_history (user_id, word, card_id, category, count, last_used) "
                 "VALUES (%s, %s, %s, %s, 1, NOW()) "
                 "ON DUPLICATE KEY UPDATE "
                 "  count = count + 1, "
                 "  last_used = NOW(), "
-                "  card_id = COALESCE(VALUES(card_id), card_id), "
+                "  word = VALUES(word), "
                 "  category = COALESCE(VALUES(category), category)",
                 (user_id, word, card_id, category),
             )
@@ -144,8 +157,8 @@ def record_selection(user_id: int, card, context=None) -> tuple[bool, int]:
                 (user_id, word, category, card_id, intent, place),
             )
             cur.execute(
-                "SELECT count FROM card_history WHERE user_id=%s AND word=%s",
-                (user_id, word),
+                "SELECT count FROM card_history WHERE user_id=%s AND card_id=%s",
+                (user_id, card_id),
             )
             row = cur.fetchone()
             new_count = int(row[0]) if row else 0
@@ -158,6 +171,90 @@ def record_selection(user_id: int, card, context=None) -> tuple[bool, int]:
         except Exception:
             pass
         return False, 0
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+
+def record_onboarding(user_id: int, items: list[dict], usage_rows_per_card: int = 4) -> bool:
+    """온보딩 선택을 card_history/usage_log에 기록하고 users.is_onboarded를 세운다.
+
+    record_selection과 같은 SQL 형태를 쓰되, 세 가지가 다르다:
+      1) 카드 여러 장을 executemany로 묶어 **단일 트랜잭션**으로 처리한다.
+      2) card_history의 초기 count가 4이고, 이미 행이 있으면 GREATEST(count, 4)로
+         "최소 4 보장"만 한다(온보딩은 최초 1회뿐이라 누적이 아니다).
+      3) usage_log에 카드당 4행을 INSERT한다 — place_match_count 보너스가
+         count 보너스와 같은 비중으로 작동하려면 이력 행 수가 필요하기 때문이다.
+
+    is_onboarded 갱신을 같은 트랜잭션의 **맨 앞**에서 `WHERE is_onboarded = 0` 가드와
+    함께 수행한다. 동시 요청이 둘 다 409 검사를 통과해도 UPDATE에 성공한 쪽만 남고
+    나머지는 rowcount=0으로 감지되어 롤백된다.
+
+    items: [{"card_id": int, "word": str, "category": str|None, "place": str}, ...]
+    반환: 성공 여부. 이미 온보딩된 유저면 False(호출자가 409로 변환).
+    """
+    if not items:
+        return False
+
+    try:
+        conn = get_legacy_connection()
+    except Exception as e:
+        logger.warning("record_onboarding: DB 연결 실패(%s).", e)
+        return False
+
+    try:
+        with conn.cursor() as cur:
+            # 경합 방어: 이미 온보딩된 유저면 여기서 0행이 되어 아래에서 롤백된다.
+            cur.execute(
+                "UPDATE users SET is_onboarded = 1 WHERE id = %s AND is_onboarded = 0",
+                (user_id,),
+            )
+            if cur.rowcount == 0:
+                conn.rollback()
+                logger.info("record_onboarding: 이미 온보딩된 유저(user_id=%s).", user_id)
+                return False
+
+            history_rows = [
+                (user_id, it["word"], it["card_id"], it.get("category"))
+                for it in items
+            ]
+            cur.executemany(
+                "INSERT INTO card_history (user_id, word, card_id, category, count, last_used) "
+                "VALUES (%s, %s, %s, %s, 4, NOW()) "
+                "ON DUPLICATE KEY UPDATE "
+                "  count = GREATEST(count, 4), "
+                "  last_used = NOW(), "
+                "  word = VALUES(word), "
+                "  category = COALESCE(VALUES(category), category)",
+                history_rows,
+            )
+
+            # intent는 온보딩 시점에 알 수 없으므로 NULL. place는 선택한 context 값.
+            usage_rows = [
+                (user_id, it["word"], it.get("category"), it["card_id"], None, it["place"])
+                for it in items
+                for _ in range(usage_rows_per_card)
+            ]
+            cur.executemany(
+                "INSERT INTO usage_log (user_id, word, category, card_id, intent, place, selected_at) "
+                "VALUES (%s, %s, %s, %s, %s, %s, NOW())",
+                usage_rows,
+            )
+        conn.commit()
+        logger.info(
+            "record_onboarding 완료: user_id=%s, 카드 %d장, usage_log %d행",
+            user_id, len(items), len(items) * usage_rows_per_card,
+        )
+        return True
+    except Exception:
+        logger.warning("record_onboarding: 기록 실패, 롤백.", exc_info=True)
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        raise
     finally:
         try:
             conn.close()
