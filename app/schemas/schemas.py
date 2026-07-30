@@ -16,7 +16,7 @@ class DialogueTurn(BaseModel):
 
 
 class AnalyzeRequest(BaseModel):
-    user_id: int
+    # user_id는 요청 본문이 아니라 Authorization 토큰에서 얻는다(남의 이력 조회 방지).
     speech_text: str
     dialogue_history: Optional[list[DialogueTurn]] = None
     visual_context: Optional[dict] = None
@@ -79,7 +79,7 @@ class SelectContext(BaseModel):
 
 
 class SelectRequest(BaseModel):
-    user_id: int
+    # user_id는 요청 본문이 아니라 Authorization 토큰에서 얻는다(남의 이력 기록 방지).
     card: SelectCard
     context: Optional[SelectContext] = None
 
