@@ -237,9 +237,12 @@ def record_onboarding(user_id: int, items: list[dict], usage_rows_per_card: int 
                 for it in items
                 for _ in range(usage_rows_per_card)
             ]
+            # source='onboarding' — 이력 조회(GET /history/me)에서 걸러내기 위한 표시.
+            # 개인화 집계(get_usage_counts)는 이 값을 보지 않고 온보딩 행도 그대로 센다.
             cur.executemany(
-                "INSERT INTO usage_log (user_id, word, category, card_id, intent, place, selected_at) "
-                "VALUES (%s, %s, %s, %s, %s, %s, NOW())",
+                "INSERT INTO usage_log "
+                "(user_id, word, category, card_id, intent, place, selected_at, source) "
+                "VALUES (%s, %s, %s, %s, %s, %s, NOW(), 'onboarding')",
                 usage_rows,
             )
         conn.commit()
@@ -255,6 +258,45 @@ def record_onboarding(user_id: int, items: list[dict], usage_rows_per_card: int 
         except Exception:
             pass
         raise
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+
+def get_history(user_id: int, limit: int = 50, offset: int = 0) -> list[dict]:
+    """사용 이력을 최신순으로 조회한다(GET /history/me).
+
+    source='select'로 필터링해 온보딩으로 심어진 행을 제외한다. 온보딩은 카드당 4행을
+    같은 시각에 넣기 때문에, 걸러내지 않으면 이력 화면이 같은 카드 4번 반복으로 도배된다.
+
+    주의: 이 필터는 이력 조회 전용이다. 개인화 집계(get_usage_counts)에는 절대 넣지 마라 —
+    온보딩 행을 빼면 콜드 스타트 보정이 사라져 온보딩 기능이 조용히 무의미해진다.
+
+    cards와 LEFT JOIN해 image_url을 함께 반환한다(카드가 삭제됐어도 이력은 남긴다).
+    실패 시 빈 리스트.
+    """
+    try:
+        conn = get_legacy_connection()
+    except Exception as e:
+        logger.warning("get_history: DB 연결 실패(%s), 빈 리스트 반환.", e)
+        return []
+    try:
+        with conn.cursor(DictCursor) as cur:
+            cur.execute(
+                "SELECT u.word, u.place, u.card_id, c.image_url, u.selected_at "
+                "FROM usage_log u "
+                "LEFT JOIN cards c ON c.id = u.card_id "
+                "WHERE u.user_id = %s AND u.source = 'select' "
+                "ORDER BY u.selected_at DESC, u.id DESC "
+                "LIMIT %s OFFSET %s",
+                (user_id, limit, offset),
+            )
+            return list(cur.fetchall())
+    except Exception:
+        logger.warning("get_history: 조회 실패.", exc_info=True)
+        return []
     finally:
         try:
             conn.close()

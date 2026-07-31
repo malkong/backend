@@ -98,6 +98,9 @@ def init_db() -> bool:
                 "  intent VARCHAR(16) NULL,"
                 "  place VARCHAR(32) NULL,"
                 "  selected_at DATETIME NULL,"
+                # DEFAULT 'select' 덕분에 record_selection의 INSERT는 컬럼을 명시하지
+                # 않아도 자동으로 'select'가 들어간다. 온보딩만 명시적으로 지정한다.
+                "  source VARCHAR(16) NOT NULL DEFAULT 'select',"
                 "  CONSTRAINT fk_usage_user FOREIGN KEY (user_id) REFERENCES users(id)"
                 ") CHARACTER SET utf8mb4"
             )

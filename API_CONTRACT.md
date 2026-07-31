@@ -23,7 +23,8 @@
 | 2    | POST   | `/transcribe`        | 영상/오디오 → speech_text (STT)          |
 | 3    | POST   | `/analyze`           | 의도 분석 + 개인화 카드 추천 (핵심)      |
 | 4    | POST   | `/select`            | 고른 카드 기록 → 개인화 학습 (카드 단위) |
-| 5    | GET    | `/profile/{user_id}` | 발표용: 사용자 선호 카드 확인            |
+| 5    | GET    | `/profile/me`        | 사용자 선호 카드 확인 (집계, 온보딩분 포함) |
+| 6    | GET    | `/history/me`        | 사용 이력 최신순 (온보딩분 제외)         |
 
 ---
 
@@ -152,7 +153,7 @@ INTENT_LABELS = ["인사", "질문", "요청", "제안", "정보_전달", "감�
 
 ---
 
-### 5. GET /profile/{user_id}
+### 5. GET /profile/me
 
 ```json
 응답:
@@ -168,6 +169,57 @@ INTENT_LABELS = ["인사", "질문", "요청", "제안", "정보_전달", "감�
 
 > `user_id`, `card_id` 모두 숫자다. `card_id`는 개인화 이력의 카운팅 키라 `null`이 될 수 없다.
 > `word`/`category`는 표시용이며 카드 이름이 바뀌면 최신 값으로 갱신된다.
+> **온보딩으로 심어진 초기값(`count=4`)도 여기에 포함된다.** 온보딩분을 제외한 실제 선택
+> 이력만 보려면 아래 `GET /history/me`를 쓴다.
+
+---
+
+### 6. GET /history/me — 사용 이력 (최신순)
+
+`Authorization: Bearer <token>` 필수. 토큰 주인의 이력만 반환한다.
+
+| 쿼리 파라미터 | 기본값 | 범위 |
+| --- | --- | --- |
+| `limit` | 50 | 1 ~ 100 |
+| `offset` | 0 | 0 이상 |
+
+```json
+GET /history/me?limit=50&offset=0
+
+응답:
+{
+  "items": [
+    {
+      "word": "아파요",
+      "place": "병원",
+      "cardId": 12,
+      "imageUrl": "https://drive.google.com/thumbnail?id=...&sz=w400",
+      "selectedAt": "2026-07-14T14:40:00"
+    }
+  ]
+}
+```
+
+> 카드 한 장 = 한 행이다. 여러 카드를 문장으로 묶어 보여주는 기능은 아직 없다.
+> **온보딩으로 기록된 행은 제외된다**(`usage_log.source = 'select'`인 행만 조회).
+> 온보딩은 카드당 4행을 같은 시각에 넣기 때문에, 걸러내지 않으면 같은 카드가 4번씩 반복돼 보인다.
+> `place`/`imageUrl`/`selectedAt`은 `null`일 수 있다(미기록이거나 카드가 삭제된 경우).
+> 인증 헤더가 없으면 **403**, 토큰이 유효하지 않으면 **401**이다(`/select`·`/profile/me`와 동일).
+
+---
+
+### `usage_log.source`에 대하여
+
+`usage_log`에는 행의 출처를 나타내는 `source VARCHAR(16) NOT NULL DEFAULT 'select'` 컬럼이 있다.
+
+| 값 | 의미 |
+| --- | --- |
+| `select` | 사용자가 `/select`로 실제 선택한 행 |
+| `onboarding` | 온보딩(콜드 스타트)으로 심어진 초기값 |
+
+> ⚠️ **개인화 점수 계산은 이 값으로 필터링하지 않는다.** 온보딩 행도 그대로 집계에 포함된다.
+> 온보딩의 목적 자체가 콜드 스타트 보정이라, 집계에서 빼면 온보딩이 점수에 아무 영향을
+> 주지 못하게 되어 기능이 조용히 무의미해진다. 필터링은 `GET /history/me`에서만 한다.
 
 ---
 
