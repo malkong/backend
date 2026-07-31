@@ -6,8 +6,10 @@ repositories/). 라우트별 위치:
     /analyze                routers/analyze.py
     /select, /profile/{id}  routers/cards.py
     /transcribe             routers/transcribe.py
+    /scene                  routers/scene.py
 
 graceful degradation: DB 다운 시에도 /analyze·/select는 500을 내지 않는다.
+장면 인식도 마찬가지 — AI 서버가 죽어도 /scene은 200 + context=null을 반환한다.
 """
 import logging
 from pathlib import Path
@@ -16,7 +18,16 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from app.core.seed import init_db
-from app.routers import analyze, auth, cards, health, history, onboarding, transcribe
+from app.routers import (
+    analyze,
+    auth,
+    cards,
+    health,
+    history,
+    onboarding,
+    scene,
+    transcribe,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +43,7 @@ app.include_router(transcribe.router)
 app.include_router(auth.router)
 app.include_router(onboarding.router)
 app.include_router(history.router)
+app.include_router(scene.router)
 
 
 @app.on_event("startup")
