@@ -58,5 +58,11 @@ CREATE TABLE IF NOT EXISTS usage_log (
   intent      VARCHAR(16)  NULL,
   place       VARCHAR(32)  NULL,
   selected_at DATETIME     NULL,
+  -- 행의 출처. 'select'(사용자가 실제로 고름) / 'onboarding'(콜드 스타트 초기값).
+  -- DEFAULT 'select'라서 record_selection의 INSERT는 컬럼을 명시하지 않아도 된다.
+  -- 주의: 개인화 집계(get_usage_counts)는 이 값으로 필터링하지 않는다 — 온보딩 행을
+  -- 빼면 콜드 스타트 보정이 사라져 온보딩 기능이 조용히 무의미해진다.
+  -- 필터링은 이력 조회 API(GET /history/me)에서만 한다.
+  source      VARCHAR(16)  NOT NULL DEFAULT 'select',
   CONSTRAINT fk_usage_user FOREIGN KEY (user_id) REFERENCES users(id)
 ) CHARACTER SET utf8mb4;

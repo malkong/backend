@@ -16,7 +16,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from app.core.seed import init_db
-from app.routers import analyze, auth, cards, health, onboarding, transcribe
+from app.routers import analyze, auth, cards, health, history, onboarding, transcribe
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +31,7 @@ app.include_router(cards.router)
 app.include_router(transcribe.router)
 app.include_router(auth.router)
 app.include_router(onboarding.router)
+app.include_router(history.router)
 
 
 @app.on_event("startup")
