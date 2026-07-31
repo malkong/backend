@@ -25,6 +25,8 @@
 | 4    | POST   | `/select`            | 고른 카드 기록 → 개인화 학습 (카드 단위) |
 | 5    | GET    | `/profile/me`        | 사용자 선호 카드 확인 (집계, 온보딩분 포함) |
 | 6    | GET    | `/history/me`        | 사용 이력 최신순 (온보딩분 제외)         |
+| 7    | POST   | `/scene`             | 사진 → 장소 인식 (AI 서버 경유)          |
+| 8    | GET    | `/scene/health`      | AI 서버 연동 상태 확인 (데모 전 점검용)  |
 
 ---
 
@@ -205,6 +207,90 @@ GET /history/me?limit=50&offset=0
 > 온보딩은 카드당 4행을 같은 시각에 넣기 때문에, 걸러내지 않으면 같은 카드가 4번씩 반복돼 보인다.
 > `place`/`imageUrl`/`selectedAt`은 `null`일 수 있다(미기록이거나 카드가 삭제된 경우).
 > 인증 헤더가 없으면 **403**, 토큰이 유효하지 않으면 **401**이다(`/select`·`/profile/me`와 동일).
+
+---
+
+### 7. POST /scene — 사진에서 장소 인식
+
+`Authorization: Bearer <token>` 필수. `multipart/form-data`의 `file` 필드로 이미지를 보낸다.
+
+앱은 AI 서버를 직접 호출하지 않고 **항상 이 백엔드를 거친다**
+(메타글라스 사진 → Flutter 앱 → 백엔드 → AI 서버 → 장소 반환).
+
+```json
+POST /scene   (multipart/form-data, file=<이미지>)
+
+응답:
+{ "context": "병원", "score": 0.9312, "error": null }
+```
+
+> **`context`는 `/analyze`의 `visual_context.place`에 그대로 넣으면 되는 값**이다.
+> `cards.context` / `PLACE_LABELS`와 동일한 한글 도메인이며, DB의 실제 값과 대조 확인했다.
+> `score`는 AI 모델의 softmax 확률(소수 4자리)이며, **낮아도 그대로 전달한다** — 임계값
+> 판단은 백엔드가 하지 않는다.
+
+**장소 인식 실패 — 200으로 응답한다(500 아님).** 앱은 `context`가 `null`이면
+"장소 직접 선택" 화면으로 넘어가면 된다.
+
+```json
+{ "context": null, "score": null, "error": "장소 인식 실패" }
+```
+
+이 폴백에 해당하는 경우:
+- AI 서버가 안 떠 있음(연결 실패), 타임아웃(기본 10초, `.env`의 `AI_SERVER_TIMEOUT`)
+- AI 서버가 5xx 반환
+- 매핑표에 없는 `scene` 값이 온 경우(모델 갱신 등)
+
+**그대로 전달하는 오류** — 사용자 입력 문제이므로 폴백하지 않는다:
+
+| 상황 | 응답 |
+| --- | --- |
+| 이미지가 아닌 파일 | **415** `{"detail": "이미지 형식이 올바르지 않습니다."}` |
+| 깨진 이미지 파일 | **400** `{"detail": "이미지 파일이 손상되었습니다."}` |
+| 빈 파일 | **400** `{"detail": "빈 파일입니다."}` |
+| 10MB 초과 | **413** `{"detail": "이미지가 너무 큽니다. 최대 10MB까지 가능합니다."}` |
+| 인증 헤더 없음 / 토큰 무효 | **403** / **401** |
+
+지원 형식은 AI 서버 기준 JPEG, PNG, WebP, BMP.
+
+### 8. GET /scene/health — AI 서버 연동 확인
+
+인증 불필요. 데모 전에 AI 서버가 붙어 있는지 확인하는 용도다.
+
+```json
+{ "aiServer": "http://localhost:8001", "reachable": true,  "detail": "ok" }
+{ "aiServer": "http://localhost:8001", "reachable": false, "detail": "연결 실패(ConnectError)" }
+```
+
+`reachable`이 `false`여도 **200**을 반환한다(점검용 엔드포인트라 그 자체가 실패하면 안 됨).
+
+### AI 서버(장면 인식) 연동 메모
+
+별도 프로세스로 실행되는 외부 서버다 — 저장소: `malkong/ai`.
+
+| 항목 | 값 |
+| --- | --- |
+| 주소 | `.env`의 `AI_SERVER_URL` (기본 `http://localhost:8001`) |
+| 호출 | `POST {AI_SERVER_URL}/predict`, multipart `file` |
+| 응답 | `{"scene": "Hospital", "score": 0.9312}` |
+| 타임아웃 | `.env`의 `AI_SERVER_TIMEOUT` (기본 10초) |
+
+**⚠️ AI 서버는 반드시 `--port 8001`로 띄울 것.** 저장소 README의 실행 예시
+(`uvicorn app.main:app --reload`)는 기본 포트 **8000**이라 이 백엔드와 충돌한다.
+
+`scene` → `context` 변환표 (6종):
+
+| AI 서버 `scene` | 우리 `context` |
+| --- | --- |
+| `Cafe` | 카페 |
+| `Convenience Store` | 편의점 |
+| `Hospital` | 병원 |
+| `Pharmacy` | 약국 |
+| `Public Transport` | 대중교통 |
+| `Restaurant` | 식당 |
+
+> `공통`은 AI가 반환하지 않는다 — 카드 컨텍스트의 baseline 값이며 place 매칭에서도
+> 제외되므로 변환 대상이 아니다.
 
 ---
 
