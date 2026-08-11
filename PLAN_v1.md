@@ -328,6 +328,11 @@ DB_NAME=aac
 ---
 
 ## 개인화 점수 공식 (MVP, 2026-07-21 Deep Interview로 상황 보너스 추가 확정)
+
+> ⚠️ **이 섹션은 v1 기획 당시 안이며 현행과 다르다.** `base_rank`가 "LLM이 준 순서"가 아니라
+> "카탈로그 4단계 매칭 tier"로 바뀌었다. 현재 공식은 맨 아래 "이후 업데이트" 섹션의
+> **"5. 개인화 점수 공식 (현재)"**를 볼 것. 가중치(0.08/0.05/0.05) 자체는 그대로 유지된다.
+
 ```
 score = base_rank + (0.08 × count) + (0.05 × intent_match_count) + (0.05 × place_match_count)
 ```
@@ -597,3 +602,65 @@ PR [`backend#26`](https://github.com/malkong/backend/pull/26) (issue [#25](https
 **3. Mode 2(영상 → STT → 분석) — 백엔드는 이미 완성, 프론트만 안 됨**
 - 백엔드 `POST /transcribe`(Faster-Whisper + ffmpeg)와 `POST /analyze`의 `speech_text` 파라미터는 이미 동작한다.
 - 프론트 `home_screen.dart`의 `_pickVideo()`는 영상 파일을 고르기만 하고 서버에 보내지 않는다("영상 전송 기능은 다음 단계에서 연결됩니다" 메시지만 표시). `card_select_screen.dart`도 `place`만 받고 `speech_text`를 넘길 방법이 없다. 완성하려면: (1) 앱에 `/transcribe` 호출 함수 추가, (2) `_pickVideo`가 그 결과로 카드 화면 이동, (3) `CardSelectScreen`이 `speech_text`를 받아 `/analyze`에 전달, (4) `easy_meaning`을 보여줄 화면 자리 마련(현재 어디에도 표시 안 됨) — 4가지 다 미착수.
+
+**4. `intent` 필드는 항상 8개 라벨 중 하나로 채워진다 (null 아님)**
+- `AnalysisResult.intent`는 `Optional[str]`이 아니라 `Literal["인사", ..., "기타"]`로 선언돼 있어 애초에 null을 담을 수 없다.
+- Mode 1(`speech_text=""`)일 때는 Gemini를 호출하지 않지만, 그 대신 코드가 `intent="기타"`를 직접 채워서 반환한다(`EMPTY_SPEECH_ANALYSIS`). 이건 지어낸 값이 아니라, 최적화 전에도 Gemini가 빈 입력엔 항상 `"기타"`를 반환했던 것과 동일한 결과를 호출 없이 재현한 것이다.
+
+**5. 카드 매칭 로직 상세 — `intent`/`place`가 카탈로그와 대조되는 방식**
+
+카드 카탈로그(`data/cards_catalog.json`, 111장) 각 카드는 `name/category/context/intention/image_url/valid_for_intents` 필드를 갖는다. 매칭(`card_generator.py`의 `_tier_for()`)에 실제로 쓰이는 건 `context`(장소)와 `valid_for_intents`(이 카드가 상대방의 어떤 intent에 대한 응답으로 적절한지 태깅한 배열) 둘뿐이다.
+
+```python
+place_match  = place_active is not None and card["context"] == place_active
+intent_match = intent in card["valid_for_intents"]
+is_common    = card["context"] == "공통"
+
+# 4단계 tier, base_rank는 scoring_constants.py 단일 소스
+장소+의도 (둘 다 일치)      → base_rank 0.70   ← 최우선
+장소만 일치                 → base_rank 0.50
+의도만 일치                 → base_rank 0.30
+공통 카드 (context=="공통") → base_rank 0.00   ← 항상 baseline으로 포함
+셋 다 아니면                → 후보에서 제외
+```
+
+- 카드에는 `intention`이라는 비슷한 필드도 있지만(카드 자신=사용자의 발화 유형) **매칭에는 안 쓴다.** 전달받는 `intent`는 상대방의 의도라 화자가 다르기 때문 — `intention`으로 직접 비교하면 상대방이 "요청"했는데 카드도 "요청"하는 식으로 되묻는 이상한 응답이 나온다. (상세: `API_CONTRACT.md` 337~339행)
+- 매칭 통과한 카드를 `base_rank` 내림차순(동점이면 `card_id` → `word` 순 결정론적 tie-break)으로 정렬해 상위 8장만 후보로 반환한다(`TOP_N = 8`).
+- 실측 예시(`place="병원"`, `intent="기타"`): "119" 카드는 `context="병원"` AND `"기타" in valid_for_intents` → 0.70. "머리가 아파요"는 `context="병원"`이지만 `valid_for_intents`에 `"기타"`가 없어 → 0.50.
+
+**6. 개인화 점수 공식 (현재)**
+
+카탈로그 매칭에서 나온 카드 8장(`base_rank`)에, 사용자의 과거 선택 이력을 **세 항목 독립 가산**으로 더해 재정렬한다(`personalize.py`). 세 항목은 AND가 아니라 각각 따로 맞으면 그만큼만 더해진다 — 의도와 장소가 동시에 맞아야 하는 게 아니다.
+
+```python
+score = base_rank
+        + min(COUNT_WEIGHT × count, COUNT_BONUS_CAP)   # 전체 선택 횟수, 상한 있음
+        + INTENT_WEIGHT × intent_match_count            # 같은 intent 상황에서 고른 횟수 (place 무관)
+        + PLACE_WEIGHT  × place_match_count              # 같은 place 상황에서 고른 횟수 (intent 무관)
+```
+| 상수 | 값 |
+|---|---|
+| `COUNT_WEIGHT` | 0.08 |
+| `INTENT_WEIGHT` | 0.05 |
+| `PLACE_WEIGHT` | 0.05 |
+| `COUNT_BONUS_CAP` | 0.64 (count 항목만 상한, intent/place는 무상한) |
+
+⚠️ **핵심 불변식(코드에 assert로 박혀 있음)**: `COUNT_BONUS_CAP(0.64) < "장소+의도" base_rank(0.70)`. 순수 인기도(count)만으로는 "장소+의도가 둘 다 맞는 카드"를 절대 역전할 수 없다 — 상황 적합성이 인기도보다 항상 우선한다는 설계.
+
+실측 예시: "전자기기 충전하기" 카드, `base_rank=0.5`, 같은 상황(카페+제안)에서 과거 2번 선택 → `score = 0.5 + 0.08×2 + 0.05×2 + 0.05×2 = 0.86`.
+
+DB 조회 실패 시 보너스 전부 0으로 처리하고 `base_rank` 순서 그대로 반환(예외 전파 없음, `/analyze` 500 금지 불변식 유지).
+
+**7. 전체 파이프라인 요약**
+```
+① 입력: speech_text(옵션) + visual_context.place(옵션)
+        ↓
+② 의도 분석(llm.py): speech_text 있으면 Gemini 호출 → intent 등 5필드
+                      없으면(Mode 1) Gemini 생략, intent="기타" 고정 반환
+        ↓ intent
+③ 카드 매칭(card_generator.py): 카탈로그 111장을 intent/place로 4단계 tier 분류 → 상위 8장
+        ↓ 카드 8장(base_rank 순)
+④ 개인화 재정렬(personalize.py): 선택 이력(count/intent_match/place_match) 가산 → 최종 정렬
+        ↓
+⑤ 응답: analysis + cards(8장) → 앱 표시 → 사용자 선택 → POST /select 기록 → 다음 ④에 반영(루프)
+```
