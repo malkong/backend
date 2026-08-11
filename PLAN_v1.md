@@ -78,6 +78,11 @@ IT_3/
 
 ## 팀 API 계약서 (전체 팀 공유)
 
+> ⚠️ **아래 계약서는 v1(기획 당시) 안이며 현행 API가 아니다.** 실제 최신 계약은
+> `API_CONTRACT.md`를 볼 것 — 인증(회원가입/로그인, `user_id`는 토큰에서 추출),
+> `/scene`(장소 인식 AI 연동), `/onboarding`, `/history/me` 등이 이후 추가됐고,
+> `/select`도 카드 여러 장을 한 번에 받도록 바뀌었다(아래 "이후 업데이트" 참고).
+
 **공통 규칙**
 - Base URL(로컬): `http://localhost:8000`
 - Base URL(팀 공유): `http://<서버IP>:8000`
@@ -571,3 +576,24 @@ GPU 없이 CPU만으로 동작하는 것이 확정된 구성이야.
 6. MySQL `card_history` 테이블에서 카드 이력 및 card_id(더미) 저장 확인
 7. `POST /transcribe` + 한국어 음성/영상 → speech_text 반환 (ffmpeg + Faster-Whisper, CPU)
 8. `web/index.html` → STT 업로드 + 카드 표시 + 클릭 하이라이트 확인 (순위 변화는 2주차 완료 후)
+
+---
+
+## 이후 업데이트 (2026-08-11, develop 머지 완료)
+
+PR [`backend#26`](https://github.com/malkong/backend/pull/26) (issue [#25](https://github.com/malkong/backend/issues/25)) 로 develop에 반영됨. 상세 계약은 `API_CONTRACT.md`가 최신 기준.
+
+**1. Mode 1(사진만 있고 상대방 발화 없음) 응답속도 개선**
+- 원인: 앱이 사진만으로 카드를 받을 때도 `speech_text=""`로 `/analyze`를 호출하는데, 이 경우에도 매번 Gemini를 호출해 10~15초가 걸렸다(결과는 항상 `intent="기타"`라 호출 자체가 낭비).
+- 겸사겸사 발견한 문제: `personalize.py`가 카드 한 장마다 MySQL 커넥션을 새로 열어(카드 8장 → 커넥션 8~9개) 지연을 더하고 있었음.
+- 조치: `speech_text`가 비면 Gemini 호출 없이 고정값(`EMPTY_SPEECH_ANALYSIS`) 즉시 반환 + 개인화 조회를 카드별 N커넥션에서 벌크 쿼리 1회로 통합.
+- 결과: Mode 1 응답 10~15초 → 0.065초(로컬 실측). Mode 2(실제 발화)는 회귀 없음.
+
+**2. `POST /select` 카드 복수 선택 지원**
+- 배경: 사용자가 카드 여러 장을 골라 문장을 조합할 수 있어야 하는데(예: "이거"+"주세요"), `/select`가 카드 한 장만 받는 계약이라 프론트(`malkong/frontend`)가 단일 선택 UI로 구현돼 있었다.
+- 조치: `SelectRequest.cards`(배열) 추가, 기존 `card`(단수)는 하위호환 유지(deprecated). 응답도 `results` 배열 + 카드 1장일 때만 채워지는 `new_count`로 하위호환.
+- **주의**: 이건 백엔드가 카드 여러 장을 "기록"할 준비만 된 것이다. 화면에서 실제로 카드를 여러 장 고르게 하는 프론트 UI는 아직 안 됐다 — `malkong/frontend` 이슈 [#1](https://github.com/malkong/frontend/issues/1)로 별도 작업 필요. 카드 여러 장을 자연스러운 한 문장으로 합치는 로직(문장 조합/TTS)도 아직 어디에도 구현 안 됨(팀원의 `card_tts` 브랜치가 미연결 상태).
+
+**3. Mode 2(영상 → STT → 분석) — 백엔드는 이미 완성, 프론트만 안 됨**
+- 백엔드 `POST /transcribe`(Faster-Whisper + ffmpeg)와 `POST /analyze`의 `speech_text` 파라미터는 이미 동작한다.
+- 프론트 `home_screen.dart`의 `_pickVideo()`는 영상 파일을 고르기만 하고 서버에 보내지 않는다("영상 전송 기능은 다음 단계에서 연결됩니다" 메시지만 표시). `card_select_screen.dart`도 `place`만 받고 `speech_text`를 넘길 방법이 없다. 완성하려면: (1) 앱에 `/transcribe` 호출 함수 추가, (2) `_pickVideo`가 그 결과로 카드 화면 이동, (3) `CardSelectScreen`이 `speech_text`를 받아 `/analyze`에 전달, (4) `easy_meaning`을 보여줄 화면 자리 마련(현재 어디에도 표시 안 됨) — 4가지 다 미착수.
