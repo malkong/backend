@@ -1,6 +1,6 @@
 """Pydantic 요청/응답 모델 (/health, /analyze, /select, /profile 관련)"""
 from typing import Literal, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 INTENT_LABELS = ("인사", "질문", "요청", "제안", "정보_전달", "감정_표현", "확인", "기타")
 
@@ -80,13 +80,32 @@ class SelectContext(BaseModel):
 
 class SelectRequest(BaseModel):
     # user_id는 요청 본문이 아니라 Authorization 토큰에서 얻는다(남의 이력 기록 방지).
-    card: SelectCard
+    # card는 하위호환용(deprecated) — 앱이 cards 배열로 마이그레이션하면 제거한다.
+    card: Optional[SelectCard] = None
+    cards: list[SelectCard] = Field(default_factory=list)
     context: Optional[SelectContext] = None
+
+    @model_validator(mode="after")
+    def _normalize_cards(self) -> "SelectRequest":
+        """card 단수 호출을 cards 배열로 정규화한다. 라우터 아래로는 항상 cards만 흐른다."""
+        if not self.cards:
+            if self.card is None:
+                raise ValueError("card 또는 cards 중 하나는 필수입니다.")
+            self.cards = [self.card]
+        return self
+
+
+class SelectResultItem(BaseModel):
+    card_id: int
+    new_count: int
 
 
 class SelectResponse(BaseModel):
     ok: bool
-    new_count: int
+    # 하위호환: card 단수 호출(또는 cards가 1장)일 때만 채워진다. 카드가 여러 장이면
+    # 어느 카드의 count를 대표로 넣을지 모호하므로 null — 그 경우엔 results를 본다.
+    new_count: Optional[int] = None
+    results: list[SelectResultItem] = Field(default_factory=list)
 
 
 # ---- /profile ----

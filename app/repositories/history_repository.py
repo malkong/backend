@@ -125,38 +125,52 @@ def get_top_cards(user_id: int, limit: int = 20) -> list[dict]:
 # ---------------------------------------------------------------------------
 # write
 # ---------------------------------------------------------------------------
-def record_selection(user_id: int, card, context=None) -> tuple[bool, int]:
-    """card_history UPSERT + usage_log INSERT를 단일 트랜잭션으로 기록.
+def record_selection(user_id: int, cards: list, context=None) -> tuple[bool, list[dict]]:
+    """card_history UPSERT + usage_log INSERT를 카드 여러 장에 대해 단일 트랜잭션으로 기록.
 
-    카운팅 키는 (user_id, card_id)다. card_id가 없으면 기록하지 않고 (False, 0)을 반환한다
+    한 문장에 쓴 카드 여러 장(예: "이거"+"주세요")을 한 번에 기록한다. record_onboarding과
+    같은 executemany + 단일 트랜잭션 패턴을 쓴다 — N행이 같은 NOW()로 들어가므로
+    usage_log에서 시각이 같은 행끼리가 한 문장이었음을 알 수 있다.
+
+    카운팅 키는 (user_id, card_id)다. card_id/word가 없는 카드는 건너뛴다
     (card_history.card_id / usage_log.card_id가 NOT NULL이므로 저장 자체가 불가능).
+    같은 요청 안에서 card_id가 중복되면 처음 것만 남긴다 — UPSERT가 같은 키를 두 번 치면
+    count가 2 올라가 버린다(온보딩 코드도 같은 이유로 중복을 제거한다).
     word/category는 키가 아니라 표시·디버깅용이지만 매번 최신 값으로 갱신한다.
 
-    실패 시 (False, 0) 반환, 예외 전파 없음.
-    반환: (성공 여부, 갱신된 card_history.count).
+    실패/유효한 카드 없음 시 (False, []) 반환, 예외 전파 없음.
+    반환: (성공 여부, [{"card_id", "new_count"}, ...]) — 유효한 카드의 등장 순서를 유지.
     """
-    card_id = getattr(card, "card_id", None)
-    if card_id is None:
-        logger.warning("record_selection: card_id가 없어 기록을 건너뜁니다.")
-        return False, 0
-    word = getattr(card, "word", None)
-    if not word:
-        return False, 0
-    category = getattr(card, "category", None)
     intent = getattr(context, "intent", None) if context is not None else None
     place = getattr(context, "place", None) if context is not None else None
+
+    seen: set = set()
+    items: list[tuple] = []
+    for card in cards:
+        card_id = getattr(card, "card_id", None)
+        word = getattr(card, "word", None)
+        if card_id is None or not word:
+            logger.warning("record_selection: card_id/word가 없는 카드를 건너뜁니다.")
+            continue
+        if card_id in seen:
+            continue
+        seen.add(card_id)
+        items.append((card_id, word, getattr(card, "category", None)))
+
+    if not items:
+        return False, []
 
     try:
         conn = get_legacy_connection()
     except Exception as e:
-        logger.warning("record_selection: DB 연결 실패(%s), (False, 0) 반환.", e)
-        return False, 0
+        logger.warning("record_selection: DB 연결 실패(%s), (False, []) 반환.", e)
+        return False, []
 
     try:
         with conn.cursor() as cur:
-            cur.execute(
-                # UNIQUE 키가 (user_id, card_id)이므로 ON DUPLICATE는 그 키로 걸린다.
-                # word/category는 키가 아니므로 최신 값으로 계속 갱신한다(카드 이름 변경 반영).
+            # UNIQUE 키가 (user_id, card_id)이므로 ON DUPLICATE는 그 키로 걸린다.
+            # word/category는 키가 아니므로 최신 값으로 계속 갱신한다(카드 이름 변경 반영).
+            cur.executemany(
                 "INSERT INTO card_history (user_id, word, card_id, category, count, last_used) "
                 "VALUES (%s, %s, %s, %s, 1, NOW()) "
                 "ON DUPLICATE KEY UPDATE "
@@ -164,28 +178,34 @@ def record_selection(user_id: int, card, context=None) -> tuple[bool, int]:
                 "  last_used = NOW(), "
                 "  word = VALUES(word), "
                 "  category = COALESCE(VALUES(category), category)",
-                (user_id, word, card_id, category),
+                [(user_id, word, card_id, category) for card_id, word, category in items],
             )
-            cur.execute(
+            cur.executemany(
                 "INSERT INTO usage_log (user_id, word, category, card_id, intent, place, selected_at) "
                 "VALUES (%s, %s, %s, %s, %s, %s, NOW())",
-                (user_id, word, category, card_id, intent, place),
+                [
+                    (user_id, word, category, card_id, intent, place)
+                    for card_id, word, category in items
+                ],
             )
+            card_ids = [card_id for card_id, _, _ in items]
+            placeholders = _in_placeholders(card_ids)
             cur.execute(
-                "SELECT count FROM card_history WHERE user_id=%s AND card_id=%s",
-                (user_id, card_id),
+                f"SELECT card_id, count FROM card_history "
+                f"WHERE user_id=%s AND card_id IN ({placeholders})",
+                (user_id, *card_ids),
             )
-            row = cur.fetchone()
-            new_count = int(row[0]) if row else 0
+            counts = {row[0]: int(row[1]) for row in cur.fetchall()}
         conn.commit()
-        return True, new_count
+        results = [{"card_id": cid, "new_count": counts.get(cid, 0)} for cid in card_ids]
+        return True, results
     except Exception:
-        logger.warning("record_selection: 기록 실패, 롤백 후 (False, 0) 반환.", exc_info=True)
+        logger.warning("record_selection: 기록 실패, 롤백 후 (False, []) 반환.", exc_info=True)
         try:
             conn.rollback()
         except Exception:
             pass
-        return False, 0
+        return False, []
     finally:
         try:
             conn.close()

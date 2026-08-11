@@ -22,7 +22,7 @@
 | 1    | GET    | `/health`            | 서버 생존 확인                           |
 | 2    | POST   | `/transcribe`        | 영상/오디오 → speech_text (STT)          |
 | 3    | POST   | `/analyze`           | 의도 분석 + 개인화 카드 추천 (핵심)      |
-| 4    | POST   | `/select`            | 고른 카드 기록 → 개인화 학습 (카드 단위) |
+| 4    | POST   | `/select`            | 고른 카드(들) 기록 → 개인화 학습         |
 | 5    | GET    | `/profile/me`        | 사용자 선호 카드 확인 (집계, 온보딩분 포함) |
 | 6    | GET    | `/history/me`        | 사용 이력 최신순 (온보딩분 제외)         |
 | 7    | POST   | `/scene`             | 사진 → 장소 인식 (AI 서버 경유)          |
@@ -77,6 +77,13 @@
 MVP에서는 `speech_text`와 `user_id`(숫자)만 필수.
 `dialogue_history`, `visual_context`는 옵션.
 
+**`speech_text`가 빈 문자열이면 (Mode 1: 사진만 있고 상대방 발화가 없는 경우)**
+서버는 Gemini를 호출하지 않고 즉시 고정값(`intent: "기타"`, `intent_detail: ""`,
+`easy_meaning: ""`, `response_type: []`, `confidence: 0.0`)을 반환한다. `cards`는
+평소처럼 `visual_context.place` 기반으로 정상 추천된다. 이 경로는 응답이
+**1초 미만**이다 — 앱은 `speech_text: ''`로 호출할 때 타임아웃을 길게 잡을 필요가 없다
+(참고: Gemini를 실제로 호출하는 `speech_text` 있는 요청은 여전히 최대 수 초 걸릴 수 있다).
+
 **place 고정 라벨 (한글 7종)**
 `visual_context.place`는 아래 값 중 하나(옵션). 없거나 인식 불가한 값이면 **조용히 무시**되고 intent+공통 카드만으로 응답한다(에러 없음). `/select`의 `context.place`와 **동일한 도메인**이어야 개인화가 맞물린다:
 ```
@@ -119,19 +126,19 @@ INTENT_LABELS = ["인사", "질문", "요청", "제안", "정보_전달", "감�
 
 ---
 
-### 4. POST /select ← 카드 단위로 호출
+### 4. POST /select ← 한 문장에 쓴 카드를 배열로 한 번에 호출
 
-카드 하나 선택할 때마다 호출. 여러 카드 선택 시 여러 번 호출.
+사용자는 카드 여러 장을 골라 문장을 조합할 수 있다(예: "이거"+"주세요"). 그 카드
+전부를 `cards` 배열에 담아 **한 번만** 호출한다.
 
 ```json
 요청:
 {
   "user_id": 1,
-  "card": {
-    "word": "진통제를 주세요",
-    "category": "의료",
-    "card_id": 61
-  },
+  "cards": [
+    { "word": "이거",           "category": "지시", "card_id": 30 },
+    { "word": "진통제를 주세요", "category": "의료", "card_id": 61 }
+  ],
   "context": {
     "intent": "요청",
     "place": "병원"
@@ -139,13 +146,29 @@ INTENT_LABELS = ["인사", "질문", "요청", "제안", "정보_전달", "감�
 }
 
 응답:
-{ "ok": true, "new_count": 5 }
+{
+  "ok": true,
+  "results": [
+    { "card_id": 30, "new_count": 3 },
+    { "card_id": 61, "new_count": 5 }
+  ]
+}
 ```
 
+> **하위호환**: 기존처럼 카드 한 장을 `"card": {...}` 단수로 보내도 당분간 계속 동작한다
+> (`cards: [card]`로 취급됨). `card`/`cards` 중 하나는 필수 — 둘 다 없으면 **422**.
+> `card`는 **deprecated** — 앱이 `cards` 배열로 마이그레이션하면 제거될 예정이니
+> 새로 연동한다면 처음부터 `cards`를 쓸 것.
+> **응답도 하위호환**: 카드가 정확히 1장(단수 `card` 호출, 또는 `cards`에 1장만 담은 경우)이면
+> 옛 클라이언트를 위해 상위 `new_count` 필드도 함께 채워진다(`{ "ok": true, "new_count": 5,
+> "results": [{ "card_id": 61, "new_count": 5 }] }`). 카드가 2장 이상이면 `new_count`는
+> `null`이며 `results`를 봐야 한다.
+>
 > **`card_id`는 필수(숫자)다.** 카운팅 키가 `(user_id, card_id)`이므로 생략하면 **422**(Pydantic 검증 실패)로 거부된다. `/analyze` 응답의 `card_id`를 그대로 넘기면 된다.
 > `word`/`category`는 키가 아니라 표시·디버깅용이며, 선택할 때마다 최신 값으로 갱신된다(카드 이름이 바뀌어도 이력이 끊기지 않는다).
-> 개인화 이력은 MySQL에 저장된다: `card_history` 테이블(집계, 카운팅 키 `(user_id, word)`)과 `usage_log` 테이블(선택 시점의 intent/place까지 남기는 이벤트 로그)에 함께 기록된다.
-> DB 쓰기 실패 시에도 `/select`는 500을 내지 않고 `{ "ok": false, "new_count": 0 }`을 200으로 반환한다(graceful degradation).
+> 개인화 이력은 MySQL에 저장된다: `card_history` 테이블(집계, 카운팅 키 `(user_id, card_id)`)과 `usage_log` 테이블(선택 시점의 intent/place까지 남기는 이벤트 로그)에 함께 기록된다. `cards` 배열의 모든 행이 **같은 트랜잭션·같은 시각**으로 기록되어, 한 문장에 쓰인 카드들임을 알 수 있다.
+> 같은 요청 안에 `card_id`가 중복되면 처음 것만 반영된다(두 번 세지 않음).
+> DB 쓰기 실패 시에도 `/select`는 500을 내지 않고 `{ "ok": false, "results": [] }`을 200으로 반환한다(graceful degradation).
 >
 > **`context.place`는 옵션**. 앱이 위치를 모르면 생략하면 된다 — 생략/미지원 값이면 place 보너스만 빠지고 `/select`는 실패하지 않는다. 값은 `/analyze`와 **동일한 한글 7종** 도메인만 사용:
 > ```

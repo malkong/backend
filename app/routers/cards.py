@@ -52,11 +52,15 @@ def cards(context: str = Query(..., description="cards.context 값 (예: 병원)
 
 @router.post("/select", response_model=SelectResponse)
 def select(request: SelectRequest, user: User = Depends(get_current_user)):
-    # DB 쓰기 실패 시에도 200 + {ok:false, new_count:0} (graceful degradation, 500 금지).
-    ok, new_count = history_repository.record_selection(
-        user.id, request.card, request.context
+    # DB 쓰기 실패 시에도 200 + {ok:false, results:[]} (graceful degradation, 500 금지).
+    # request.cards는 SelectRequest의 model_validator가 항상 채워둔다(card 단수 호출도 정규화됨).
+    ok, results = history_repository.record_selection(
+        user.id, request.cards, request.context
     )
-    return SelectResponse(ok=ok, new_count=new_count)
+    # 하위호환: 카드가 정확히 1장일 때만 new_count를 상위 필드에도 채운다(옛 단일-카드
+    # 호출자가 여전히 이 필드를 읽을 수 있게). 여러 장이면 모호하므로 results만 채운다.
+    new_count = results[0]["new_count"] if len(results) == 1 else None
+    return SelectResponse(ok=ok, new_count=new_count, results=results)
 
 
 @router.get("/profile/me", response_model=ProfileResponse)
