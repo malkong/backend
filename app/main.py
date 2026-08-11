@@ -7,9 +7,11 @@ repositories/). 라우트별 위치:
     /select, /profile/{id}  routers/cards.py
     /transcribe             routers/transcribe.py
     /scene                  routers/scene.py
+    /sentence               routers/sentence.py
 
 graceful degradation: DB 다운 시에도 /analyze·/select는 500을 내지 않는다.
 장면 인식도 마찬가지 — AI 서버가 죽어도 /scene은 200 + context=null을 반환한다.
+/sentence도 Gemini가 죽으면 200 + 나열 문장을 반환한다.
 """
 import logging
 from pathlib import Path
@@ -26,6 +28,7 @@ from app.routers import (
     history,
     onboarding,
     scene,
+    sentence,
     transcribe,
 )
 
@@ -44,6 +47,7 @@ app.include_router(auth.router)
 app.include_router(onboarding.router)
 app.include_router(history.router)
 app.include_router(scene.router)
+app.include_router(sentence.router)
 
 
 @app.on_event("startup")
