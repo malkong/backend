@@ -32,12 +32,14 @@ def rerank(cards: list[Card], user_id: int, intent=None, place=None) -> list[Car
         return cards
     place_active = place if (place in PLACE_LABELS and place != COMMON_CONTEXT) else None
     try:
+        card_ids = [card.card_id for card in cards if card.card_id is not None]
+        counts_by_id = history_repository.get_usage_counts_bulk(
+            user_id, card_ids, intent, place_active
+        )
         scored: list[tuple[float, object, str, Card]] = []
         for card in cards:
             base_rank = card.score  # card_generator가 base_rank로 세팅
-            counts = history_repository.get_usage_counts(
-                user_id, card.card_id, intent, place_active
-            )
+            counts = counts_by_id.get(card.card_id) or {}
             count = counts.get("count", 0)
             intent_match = counts.get("intent_match_count", 0)
             place_match = counts.get("place_match_count", 0)
