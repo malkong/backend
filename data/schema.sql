@@ -1,0 +1,68 @@
+-- AAC Mode 2 — DB 스키마 (선택적 엄격, Selective Strictness 단일 DDL)
+-- 제약(FK/NOT NULL)은 "항상 값이 보장되는 컬럼에만" 건다.
+--   FK   : card_history.user_id -> users.id, usage_log.user_id -> users.id (2개만)
+--   NOTNULL: cards.name/category/context, 로그의 user_id/word/card_id
+--   nullable & FK 없음: cards.intention, usage_log.intent/place
+--   card_id는 NOT NULL이지만 cards로의 FK는 걸지 않는다(카탈로그 재적재 시 잠금 회피).
+-- storage.init_db()가 이 스키마를 참조하지 않고 코드에서 직접 생성하지만,
+-- 문서/수동 초기화용으로 동일 DDL을 여기에 보존한다.
+
+CREATE DATABASE IF NOT EXISTS aac CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE aac;
+
+-- 데모 유저 1명(id=1)만. 로그인/회원가입은 스코프 밖.
+CREATE TABLE IF NOT EXISTS users (
+  id BIGINT PRIMARY KEY
+) CHARACTER SET utf8mb4;
+
+INSERT IGNORE INTO users (id) VALUES (1);
+
+-- 카탈로그 카드. intention은 NULL 허용(화요일/환승역 2건이 NULL).
+-- valid_for_intents: 이 카드가 "상대방의 어떤 intent"에 대한 응답으로 적절한지 태깅한
+-- 리스트(JSON 배열, 예: ["요청","제안","확인"]). intention과는 축이 다르다 —
+-- intention은 "카드 자체(사용자)의 발화 유형", valid_for_intents는 "상대방 intent"다.
+-- 매핑(card_generator._tier_for)은 이 필드만 사용하고 intention은 참고용으로 남긴다.
+CREATE TABLE IF NOT EXISTS cards (
+  id                 BIGINT AUTO_INCREMENT PRIMARY KEY,
+  name               VARCHAR(128) NOT NULL,
+  category           VARCHAR(32)  NOT NULL,
+  context            VARCHAR(32)  NOT NULL,
+  intention          VARCHAR(32)  NULL,
+  image_url          VARCHAR(512) NULL,
+  valid_for_intents  JSON         NULL,
+  UNIQUE KEY uq_card_name (name)
+) CHARACTER SET utf8mb4;
+
+-- 집계 테이블. 카운팅 키 (user_id, card_id). card_id는 NOT NULL이지만 cards로의 FK는 걸지 않는다.
+-- word/category는 키가 아니라 표시·디버깅용이며 선택할 때마다 최신 값으로 갱신된다.
+CREATE TABLE IF NOT EXISTS card_history (
+  id        BIGINT AUTO_INCREMENT PRIMARY KEY,
+  user_id   BIGINT       NOT NULL,
+  word      VARCHAR(64)  NOT NULL,
+  card_id   BIGINT       NOT NULL,
+  category  VARCHAR(32)  NULL,
+  count     INT          NOT NULL DEFAULT 0,
+  last_used DATETIME     NULL,
+  UNIQUE KEY uq_user_card (user_id, card_id),
+  CONSTRAINT fk_history_user FOREIGN KEY (user_id) REFERENCES users(id)
+) CHARACTER SET utf8mb4;
+
+-- 이벤트 로그(append-only). card_id는 FK 없음·NOT NULL. place는 한글 7종 값 도메인.
+-- card_id를 NOT NULL로 둔 이유: intent/place 집계가 card_id 기준이라, NULL이면 조용히 누락된다.
+CREATE TABLE IF NOT EXISTS usage_log (
+  id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+  user_id     BIGINT       NOT NULL,
+  word        VARCHAR(64)  NOT NULL,
+  category    VARCHAR(32)  NULL,
+  card_id     BIGINT       NOT NULL,
+  intent      VARCHAR(16)  NULL,
+  place       VARCHAR(32)  NULL,
+  selected_at DATETIME     NULL,
+  -- 행의 출처. 'select'(사용자가 실제로 고름) / 'onboarding'(콜드 스타트 초기값).
+  -- DEFAULT 'select'라서 record_selection의 INSERT는 컬럼을 명시하지 않아도 된다.
+  -- 주의: 개인화 집계(get_usage_counts)는 이 값으로 필터링하지 않는다 — 온보딩 행을
+  -- 빼면 콜드 스타트 보정이 사라져 온보딩 기능이 조용히 무의미해진다.
+  -- 필터링은 이력 조회 API(GET /history/me)에서만 한다.
+  source      VARCHAR(16)  NOT NULL DEFAULT 'select',
+  CONSTRAINT fk_usage_user FOREIGN KEY (user_id) REFERENCES users(id)
+) CHARACTER SET utf8mb4;

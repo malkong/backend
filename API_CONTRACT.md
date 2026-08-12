@@ -22,8 +22,12 @@
 | 1    | GET    | `/health`            | 서버 생존 확인                           |
 | 2    | POST   | `/transcribe`        | 영상/오디오 → speech_text (STT)          |
 | 3    | POST   | `/analyze`           | 의도 분석 + 개인화 카드 추천 (핵심)      |
-| 4    | POST   | `/select`            | 고른 카드 기록 → 개인화 학습 (카드 단위) |
-| 5    | GET    | `/profile/{user_id}` | 발표용: 사용자 선호 카드 확인            |
+| 4    | POST   | `/select`            | 고른 카드(들) 기록 → 개인화 학습         |
+| 5    | GET    | `/profile/me`        | 사용자 선호 카드 확인 (집계, 온보딩분 포함) |
+| 6    | GET    | `/history/me`        | 사용 이력 최신순 (온보딩분 제외)         |
+| 7    | POST   | `/scene`             | 사진 → 장소 인식 (AI 서버 경유)          |
+| 8    | GET    | `/scene/health`      | AI 서버 연동 상태 확인 (데모 전 점검용)  |
+| 9    | POST   | `/sentence`          | 고른 카드 단어들 → 자연스러운 한 문장    |
 
 ---
 
@@ -61,18 +65,32 @@
 ```json
 요청:
 {
-  "user_id": "user_123",
+  "user_id": 1,
   "speech_text": "오늘 수업 끝나고 같이 카페 갈래?",
   "dialogue_history": [
     { "speaker": "partner", "text": "이전 발화" },
     { "speaker": "user",    "text": "이전 답변" }
   ],
-  "visual_context": { "place": "classroom" }
+  "visual_context": { "place": "병원" }
 }
 ```
 
-MVP에서는 `speech_text`와 `user_id`만 필수.
+MVP에서는 `speech_text`와 `user_id`(숫자)만 필수.
 `dialogue_history`, `visual_context`는 옵션.
+
+**`speech_text`가 빈 문자열이면 (Mode 1: 사진만 있고 상대방 발화가 없는 경우)**
+서버는 Gemini를 호출하지 않고 즉시 고정값(`intent: "기타"`, `intent_detail: ""`,
+`easy_meaning: ""`, `response_type: []`, `confidence: 0.0`)을 반환한다. `cards`는
+평소처럼 `visual_context.place` 기반으로 정상 추천된다. 이 경로는 응답이
+**1초 미만**이다 — 앱은 `speech_text: ''`로 호출할 때 타임아웃을 길게 잡을 필요가 없다
+(참고: Gemini를 실제로 호출하는 `speech_text` 있는 요청은 여전히 최대 수 초 걸릴 수 있다).
+
+**place 고정 라벨 (한글 7종)**
+`visual_context.place`는 아래 값 중 하나(옵션). 없거나 인식 불가한 값이면 **조용히 무시**되고 intent+공통 카드만으로 응답한다(에러 없음). `/select`의 `context.place`와 **동일한 도메인**이어야 개인화가 맞물린다:
+```
+공통, 식당, 병원, 카페, 대중교통, 편의점, 약국
+```
+(실제 입력 place는 물리적 6종(식당/병원/카페/대중교통/편의점/약국)만 오고, `공통`은 카드 컨텍스트 baseline 전용 값이다.)
 
 **intent 고정 라벨 (확정)**
 `analysis.intent`는 아래 8개 값 중 하나로만 반환 (자유 텍스트 금지):
@@ -92,66 +110,283 @@ INTENT_LABELS = ["인사", "질문", "요청", "제안", "정보_전달", "감�
     "confidence": 0.86
   },
   "cards": [
-    { "id": "c1", "word": "좋아",   "category": "수락", "symbol_id": null, "source": "llm_fallback", "score": 0.91 },
-    { "id": "c2", "word": "싫어",   "category": "거절", "symbol_id": null, "source": "llm_fallback", "score": 0.62 },
-    { "id": "c3", "word": "시간",   "category": "질문", "symbol_id": null, "source": "llm_fallback", "score": 0.55 },
-    { "id": "c4", "word": "어디",   "category": "질문", "symbol_id": null, "source": "llm_fallback", "score": 0.48 },
-    { "id": "c5", "word": "오늘",   "category": "시간", "symbol_id": null, "source": "llm_fallback", "score": 0.40 },
-    { "id": "c6", "word": "나중에", "category": "거절", "symbol_id": null, "source": "llm_fallback", "score": 0.35 }
+    { "word": "진통제를 주세요", "category": "의료", "card_id": 61, "image_url": "https://drive.google.com/file/d/.../view", "source": "card_db", "score": 0.70 },
+    { "word": "머리가 아파요",   "category": "의료", "card_id": 19, "image_url": "https://drive.google.com/file/d/.../view", "source": "card_db", "score": 0.50 },
+    { "word": "궁금해요",       "category": "기타", "card_id":  8, "image_url": "https://drive.google.com/file/d/.../view", "source": "card_db", "score": 0.30 },
+    { "word": "네",            "category": "인사", "card_id": 15, "image_url": "https://drive.google.com/file/d/.../view", "source": "card_db", "score": 0.00 }
   ]
 }
 ```
 
-- `cards`는 score 내림차순 정렬되어 반환
-- `word`: 단어 하나 (AAC 카드 하나)
-- `symbol_id`: null(MVP) → AAC 팀원 모듈 연동 시 실제 상징 ID 채워짐
-- `source`: `"llm_fallback"` (MVP) → `"aac_module"` 또는 `"card_db"` (최종)
+- `cards`는 score 내림차순 정렬되어 반환 (상위 8개)
+- `word`: 단어/구 하나 (AAC 카드 하나)
+- `card_id`: 카탈로그 카드 고유번호(숫자, **항상 존재**). DB 조회 실패로 카탈로그 파일 폴백을 타도 파일에 심어둔 동일한 id가 반환된다
+- `image_url`: 카드 이미지 URL(없으면 `null`)
+- `source`: `"card_db"` (카탈로그 매핑)
 - 문장 조합은 **앱/다른 팀원 담당**
 
 ---
 
-### 4. POST /select ← 카드 단위로 호출
+### 4. POST /select ← 한 문장에 쓴 카드를 배열로 한 번에 호출
 
-카드 하나 선택할 때마다 호출. 여러 카드 선택 시 여러 번 호출.
+사용자는 카드 여러 장을 골라 문장을 조합할 수 있다(예: "이거"+"주세요"). 그 카드
+전부를 `cards` 배열에 담아 **한 번만** 호출한다.
 
 ```json
 요청:
 {
-  "user_id": "user_123",
-  "card": {
-    "word": "좋아",
-    "category": "수락"
-  },
+  "user_id": 1,
+  "cards": [
+    { "word": "이거",           "category": "지시", "card_id": 30 },
+    { "word": "진통제를 주세요", "category": "의료", "card_id": 61 }
+  ],
   "context": {
-    "intent": "제안"
+    "intent": "요청",
+    "place": "병원"
   }
 }
 
 응답:
-{ "ok": true, "new_count": 5 }
+{
+  "ok": true,
+  "results": [
+    { "card_id": 30, "new_count": 3 },
+    { "card_id": 61, "new_count": 5 }
+  ]
+}
 ```
+
+> **하위호환**: 기존처럼 카드 한 장을 `"card": {...}` 단수로 보내도 당분간 계속 동작한다
+> (`cards: [card]`로 취급됨). `card`/`cards` 중 하나는 필수 — 둘 다 없으면 **422**.
+> `card`는 **deprecated** — 앱이 `cards` 배열로 마이그레이션하면 제거될 예정이니
+> 새로 연동한다면 처음부터 `cards`를 쓸 것.
+> **응답도 하위호환**: 카드가 정확히 1장(단수 `card` 호출, 또는 `cards`에 1장만 담은 경우)이면
+> 옛 클라이언트를 위해 상위 `new_count` 필드도 함께 채워진다(`{ "ok": true, "new_count": 5,
+> "results": [{ "card_id": 61, "new_count": 5 }] }`). 카드가 2장 이상이면 `new_count`는
+> `null`이며 `results`를 봐야 한다.
+>
+> **`card_id`는 필수(숫자)다.** 카운팅 키가 `(user_id, card_id)`이므로 생략하면 **422**(Pydantic 검증 실패)로 거부된다. `/analyze` 응답의 `card_id`를 그대로 넘기면 된다.
+> `word`/`category`는 키가 아니라 표시·디버깅용이며, 선택할 때마다 최신 값으로 갱신된다(카드 이름이 바뀌어도 이력이 끊기지 않는다).
+> 개인화 이력은 MySQL에 저장된다: `card_history` 테이블(집계, 카운팅 키 `(user_id, card_id)`)과 `usage_log` 테이블(선택 시점의 intent/place까지 남기는 이벤트 로그)에 함께 기록된다. `cards` 배열의 모든 행이 **같은 트랜잭션·같은 시각**으로 기록되어, 한 문장에 쓰인 카드들임을 알 수 있다.
+> 같은 요청 안에 `card_id`가 중복되면 처음 것만 반영된다(두 번 세지 않음).
+> DB 쓰기 실패 시에도 `/select`는 500을 내지 않고 `{ "ok": false, "results": [] }`을 200으로 반환한다(graceful degradation).
+>
+> **`context.place`는 옵션**. 앱이 위치를 모르면 생략하면 된다 — 생략/미지원 값이면 place 보너스만 빠지고 `/select`는 실패하지 않는다. 값은 `/analyze`와 **동일한 한글 7종** 도메인만 사용:
+> ```
+> 공통, 식당, 병원, 카페, 대중교통, 편의점, 약국
+> ```
+> `place`(및 `intent`)가 이후 선택과 같은 상황이면 `/analyze` 카드 점수에 소액 보너스가 붙는다. `place`/`intent`가 미기록(NULL)인 이력은 매칭 대상에서 제외된다(unknown끼리도 보너스 없음). (상세: `.omc/specs/deep-interview-aac-context-personalization.md`)
 
 ---
 
-### 5. GET /profile/{user_id}
+### 5. GET /profile/me
 
 ```json
 응답:
 {
-  "user_id": "user_123",
+  "user_id": 1,
   "top_cards": [
-    { "word": "좋아",   "category": "수락", "count": 31 },
-    { "word": "시간",   "category": "질문", "count": 15 },
-    { "word": "싫어",   "category": "거절", "count":  3 }
+    { "word": "진통제를 주세요", "category": "의료", "count": 31, "card_id": 61 },
+    { "word": "머리가 아파요",   "category": "의료", "count": 15, "card_id": 19 },
+    { "word": "네",            "category": "인사", "count":  3, "card_id": 15 }
   ]
 }
 ```
+
+> `user_id`, `card_id` 모두 숫자다. `card_id`는 개인화 이력의 카운팅 키라 `null`이 될 수 없다.
+> `word`/`category`는 표시용이며 카드 이름이 바뀌면 최신 값으로 갱신된다.
+> **온보딩으로 심어진 초기값(`count=4`)도 여기에 포함된다.** 온보딩분을 제외한 실제 선택
+> 이력만 보려면 아래 `GET /history/me`를 쓴다.
+
+---
+
+### 6. GET /history/me — 사용 이력 (최신순)
+
+`Authorization: Bearer <token>` 필수. 토큰 주인의 이력만 반환한다.
+
+| 쿼리 파라미터 | 기본값 | 범위 |
+| --- | --- | --- |
+| `limit` | 50 | 1 ~ 100 |
+| `offset` | 0 | 0 이상 |
+
+```json
+GET /history/me?limit=50&offset=0
+
+응답:
+{
+  "items": [
+    {
+      "word": "아파요",
+      "place": "병원",
+      "cardId": 12,
+      "imageUrl": "https://drive.google.com/thumbnail?id=...&sz=w400",
+      "selectedAt": "2026-07-14T14:40:00"
+    }
+  ]
+}
+```
+
+> 카드 한 장 = 한 행이다. 여러 카드를 문장으로 묶어 보여주는 기능은 아직 없다.
+> **온보딩으로 기록된 행은 제외된다**(`usage_log.source = 'select'`인 행만 조회).
+> 온보딩은 카드당 4행을 같은 시각에 넣기 때문에, 걸러내지 않으면 같은 카드가 4번씩 반복돼 보인다.
+> `place`/`imageUrl`/`selectedAt`은 `null`일 수 있다(미기록이거나 카드가 삭제된 경우).
+> 인증 헤더가 없으면 **403**, 토큰이 유효하지 않으면 **401**이다(`/select`·`/profile/me`와 동일).
+
+---
+
+### 7. POST /scene — 사진에서 장소 인식
+
+`Authorization: Bearer <token>` 필수. `multipart/form-data`의 `file` 필드로 이미지를 보낸다.
+
+앱은 AI 서버를 직접 호출하지 않고 **항상 이 백엔드를 거친다**
+(메타글라스 사진 → Flutter 앱 → 백엔드 → AI 서버 → 장소 반환).
+
+```json
+POST /scene   (multipart/form-data, file=<이미지>)
+
+응답:
+{ "context": "병원", "score": 0.9312, "error": null }
+```
+
+> **`context`는 `/analyze`의 `visual_context.place`에 그대로 넣으면 되는 값**이다.
+> `cards.context` / `PLACE_LABELS`와 동일한 한글 도메인이며, DB의 실제 값과 대조 확인했다.
+> `score`는 AI 모델의 softmax 확률(소수 4자리)이며, **낮아도 그대로 전달한다** — 임계값
+> 판단은 백엔드가 하지 않는다.
+
+**장소 인식 실패 — 200으로 응답한다(500 아님).** 앱은 `context`가 `null`이면
+"장소 직접 선택" 화면으로 넘어가면 된다.
+
+```json
+{ "context": null, "score": null, "error": "장소 인식 실패" }
+```
+
+이 폴백에 해당하는 경우:
+- AI 서버가 안 떠 있음(연결 실패), 타임아웃(기본 10초, `.env`의 `AI_SERVER_TIMEOUT`)
+- AI 서버가 5xx 반환
+- 매핑표에 없는 `scene` 값이 온 경우(모델 갱신 등)
+
+**그대로 전달하는 오류** — 사용자 입력 문제이므로 폴백하지 않는다:
+
+| 상황 | 응답 |
+| --- | --- |
+| 이미지가 아닌 파일 | **415** `{"detail": "이미지 형식이 올바르지 않습니다."}` |
+| 깨진 이미지 파일 | **400** `{"detail": "이미지 파일이 손상되었습니다."}` |
+| 빈 파일 | **400** `{"detail": "빈 파일입니다."}` |
+| 10MB 초과 | **413** `{"detail": "이미지가 너무 큽니다. 최대 10MB까지 가능합니다."}` |
+| 인증 헤더 없음 / 토큰 무효 | **403** / **401** |
+
+지원 형식은 AI 서버 기준 JPEG, PNG, WebP, BMP.
+
+### 8. GET /scene/health — AI 서버 연동 확인
+
+인증 불필요. 데모 전에 AI 서버가 붙어 있는지 확인하는 용도다.
+
+```json
+{ "aiServer": "http://localhost:8001", "reachable": true,  "detail": "ok" }
+{ "aiServer": "http://localhost:8001", "reachable": false, "detail": "연결 실패(ConnectError)" }
+```
+
+`reachable`이 `false`여도 **200**을 반환한다(점검용 엔드포인트라 그 자체가 실패하면 안 됨).
+
+### 9. POST /sentence — 고른 카드들을 한 문장으로
+
+`Authorization: Bearer <token>` 필수.
+
+앱이 카드 이름을 `". "`로 이어 붙여 "소화제. 얼마예요?"처럼 읽어주던 걸
+"소화제는 얼마예요?"로 다듬어 준다.
+
+```json
+POST /sentence
+{
+  "words": ["소화제", "얼마예요?"],
+  "context": "약국"
+}
+
+응답:
+{ "sentence": "소화제는 얼마예요?" }
+```
+
+- `words`: 사용자가 고른 카드 단어 배열. **고른 순서 그대로** 보낼 것. 1개 이상 필수.
+- `context`: 상황(장소). **선택** — 없으면 생략하거나 `null`. `/scene`이 돌려준 `context`를
+  그대로 넣으면 된다. 참고 정보로만 쓰이며 **문장에 장소명이 들어가지는 않는다**.
+
+**지어내지 않는 것이 이 API의 핵심이다.** 사용자를 대신해 말하는 문장이라
+LLM이 없는 정보를 채우면 안 된다("약 주세요"가 "두통약 두 알 주세요"가 되면 안 됨).
+프롬프트에서 수량·이름·장소·이유 추측을 금지하고, 숫자·고유명사(`"119"`)는 그대로 두며,
+이미 완성된 문장 카드(`"봉투에 담아주세요"`)는 억지로 합치지 않고 이어 붙인다.
+
+**LLM 실패 — 200으로 나열 문장을 반환한다(500 아님).** 앱은 이 API가 죽어도
+항상 쓸 수 있는 문장을 받는다.
+
+```json
+{ "sentence": "소화제. 얼마예요?" }   // = ". ".join(words)
+```
+
+이 폴백에 해당하는 경우:
+- Gemini 호출 실패(키 없음/네트워크 오류/5xx)
+- 타임아웃(기본 10초, `.env`의 `SENTENCE_TIMEOUT` — **10초 미만으로 내리지 말 것**.
+  Gemini API가 10초 미만 deadline을 거부해서 매 호출이 폴백으로 떨어진다)
+- 응답이 비었거나, 문장이 아니라 설명이 돌아온 경우
+
+**400을 내는 경우** — 입력 자체가 문장이 될 수 없는 경우뿐이다:
+
+| 상황 | 응답 |
+| --- | --- |
+| `words`가 빈 배열 | **400** `{"detail": "words는 1개 이상이어야 합니다."}` |
+| `words` 원소가 공백/빈 문자열뿐 | **400** `{"detail": "words에 빈 문자열만 있습니다."}` |
+| `words`가 20개 초과 | **400** `{"detail": "단어는 최대 20개까지 가능합니다."}` |
+| 인증 헤더 없음 / 토큰 무효 | **403** / **401** |
+
+### AI 서버(장면 인식) 연동 메모
+
+별도 프로세스로 실행되는 외부 서버다 — 저장소: `malkong/ai`.
+
+| 항목 | 값 |
+| --- | --- |
+| 주소 | `.env`의 `AI_SERVER_URL` (기본 `http://localhost:8001`) |
+| 호출 | `POST {AI_SERVER_URL}/predict`, multipart `file` |
+| 응답 | `{"scene": "Hospital", "score": 0.9312}` |
+| 타임아웃 | `.env`의 `AI_SERVER_TIMEOUT` (기본 10초) |
+
+**⚠️ AI 서버는 반드시 `--port 8001`로 띄울 것.** 저장소 README의 실행 예시
+(`uvicorn app.main:app --reload`)는 기본 포트 **8000**이라 이 백엔드와 충돌한다.
+
+`scene` → `context` 변환표 (6종):
+
+| AI 서버 `scene` | 우리 `context` |
+| --- | --- |
+| `Cafe` | 카페 |
+| `Convenience Store` | 편의점 |
+| `Hospital` | 병원 |
+| `Pharmacy` | 약국 |
+| `Public Transport` | 대중교통 |
+| `Restaurant` | 식당 |
+
+> `공통`은 AI가 반환하지 않는다 — 카드 컨텍스트의 baseline 값이며 place 매칭에서도
+> 제외되므로 변환 대상이 아니다.
+
+---
+
+### `usage_log.source`에 대하여
+
+`usage_log`에는 행의 출처를 나타내는 `source VARCHAR(16) NOT NULL DEFAULT 'select'` 컬럼이 있다.
+
+| 값 | 의미 |
+| --- | --- |
+| `select` | 사용자가 `/select`로 실제 선택한 행 |
+| `onboarding` | 온보딩(콜드 스타트)으로 심어진 초기값 |
+
+> ⚠️ **개인화 점수 계산은 이 값으로 필터링하지 않는다.** 온보딩 행도 그대로 집계에 포함된다.
+> 온보딩의 목적 자체가 콜드 스타트 보정이라, 집계에서 빼면 온보딩이 점수에 아무 영향을
+> 주지 못하게 되어 기능이 조용히 무의미해진다. 필터링은 `GET /history/me`에서만 한다.
 
 ---
 
 ## AAC 팀원과의 계약 (내 서버 ↔ AAC 카드 담당자)
 
-이 부분은 팀원과 이번 주에 확정해야 함.
+> (갱신) 이전에는 별도 카드 후보 API 연동을 팀원과 협의할 예정이었으나, `data/cards_catalog.json`(111장, `name/category/context/intention/image_url/valid_for_intents`)이 이미 AAC 카드 데이터 자체이며 `card_generator.py`가 이를 직접 매핑에 사용한다. 별도의 실시간 카드 후보 API 연동은 필요 없음 — **완료 기준은 이 카탈로그 파일 형식의 합의 유지**로 충분(라이브 통합 테스트는 스코프 밖).
+>
+> `valid_for_intents`는 카드가 "상대방의 어떤 intent에 대한 응답으로 적절한지"를 태깅한 배열(이 백엔드 로컬 전용 필드, 팀원 DB에는 없음). 매핑은 `intention`이 아니라 이 필드만 사용한다 — `intention`은 카드 자체(사용자)의 발화 유형이라 상대방 intent와 화자가 달라 직접 비교하면 부적절한 응답이 나올 수 있기 때문이다.
 
 **내가 팀원에게 주는 것 (의도 분석 결과):**
 
@@ -160,30 +395,20 @@ INTENT_LABELS = ["인사", "질문", "요청", "제안", "정보_전달", "감�
   "intent": "제안",
   "intent_detail": "수업 후 함께 카페에 가자는 제안",
   "response_type": ["accept", "refuse", "question", "conditional"],
-  "context": { "place": "classroom" }
+  "context": { "place": "병원" }
 }
 ```
 
-**팀원이 나에게 주는 것 (카드 후보, 확정 전):**
+**카드 데이터 출처 (`data/cards_catalog.json`, AAC 카드 담당자 제공)**:
 
 ```json
 {
-  "cards": [
-    {
-      "id": "card_001",
-      "word": "좋아",
-      "category": "수락",
-      "symbol_id": "sym_042"
-    },
-    {
-      "id": "card_002",
-      "word": "싫어",
-      "category": "거절",
-      "symbol_id": "sym_018"
-    }
-  ]
+  "name": "좋아",
+  "category": "수락",
+  "context": "공통",
+  "intention": "확인",
+  "image_url": "https://..."
 }
 ```
 
-> LLM fallback 카드와 AAC 모듈 카드는 **동일한 형식**이어야 함.
-> 형식 유지 시 교체 후 `personalize.py`, `main.py` 수정 불필요.
+> `context`가 place(한글 7종), `intention`이 intent 라벨. `card_generator.py`가 이 필드를 그대로 매핑 tier 산출에 사용하며, 응답의 `card_id`는 `cards` 테이블의 id이며, 카탈로그 파일에도 동일한 id가 `"id"` 필드로 심어져 있어 폴백 시에도 같은 값이 나온다.

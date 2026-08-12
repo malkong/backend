@@ -1,17 +1,19 @@
 """Faster-Whisper 기반 STT (영상/오디오 파일 -> speech_text).
 
-연구실 GPU 서버(nvcr.io/nvidia/pytorch 컨테이너, CUDA) 환경 기준.
-이 로컬 개발 PC에는 GPU가 없어 실제 추론은 서버에서만 검증 가능하다.
+로컬 CPU 환경 기준.
 """
 import os
 import subprocess
 import tempfile
 
+from dotenv import load_dotenv
 from faster_whisper import WhisperModel
 
-MODEL_SIZE = "small"
-DEVICE = "cuda"
-COMPUTE_TYPE = "float16"
+load_dotenv()
+
+MODEL_SIZE = os.getenv("STT_MODEL_SIZE", "base")
+DEVICE = os.getenv("STT_DEVICE", "cpu")
+COMPUTE_TYPE = os.getenv("STT_COMPUTE_TYPE", "int8")
 
 _model: WhisperModel | None = None
 
@@ -19,6 +21,10 @@ _model: WhisperModel | None = None
 def _get_model() -> WhisperModel:
     global _model
     if _model is None:
+        if DEVICE != "cpu":
+            raise RuntimeError(
+                f"STT_DEVICE='{DEVICE}'는 지원하지 않습니다. 이 프로젝트는 CPU 전용입니다 (STT_DEVICE=cpu)."
+            )
         _model = WhisperModel(MODEL_SIZE, device=DEVICE, compute_type=COMPUTE_TYPE)
     return _model
 
