@@ -6,7 +6,7 @@
 있도록 돕습니다.
 
 이 저장소는 팀 전체 Flutter 앱(`malkong/frontend`)의 백엔드 모듈이며, 장소 인식은
-별도 AI 서버(`malkong/ai`, CLIP 파인튜닝 모델)와 연동합니다. `web/index.html`은
+별도 AI 서버(`malkong/ai`)와 연동합니다. `web/index.html`은
 앱 연동이 늦어질 경우를 대비한 발표용 백업 화면입니다.
 
 ## 핵심 기능
