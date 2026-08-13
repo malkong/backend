@@ -15,7 +15,7 @@
 |---|---|---|
 | 회원가입/로그인 | JWT 기반 인증. 개인화 관련 API는 전부 토큰 필요 | `POST /auth/signup`, `POST /auth/login` |
 | 의도 분석 | 상대방 발화를 Gemini로 분석해 8종 의도 라벨 중 하나로 분류 | `POST /analyze` |
-| 장소 인식 | 사진을 AI 서버(CLIP 파인튜닝)에 보내 장소 인식, 실패 시 사용자가 직접 선택 | `POST /scene` |
+| 장소 인식 | 사진을 AI 서버(`malkong/ai`)에 보내 장소 인식, 실패 시 사용자가 직접 선택 | `POST /scene` |
 | AAC 카드 매칭 | 의도 + 장소를 카탈로그 111장과 대조해 4단계 우선순위로 후보 카드 추천 | `POST /analyze` (cards) |
 | 개인화 | 사용자의 과거 선택 이력(전체/같은 상황)을 반영해 카드 순위 재조정 | `POST /analyze` (rerank) |
 | 온보딩 | 신규 사용자의 콜드 스타트 보정(자주 가는 장소·카드 미리 선택) | `POST /onboarding` |
@@ -59,7 +59,7 @@ speech_text(옵션) + visual_context.place(옵션)
                                 │  없으면 Gemini 생략, intent="기타" 즉시 반환
   → card_generator.py: get_candidate_cards()
         ─ intent + place를 카탈로그 111장과 대조해 4단계 우선순위로 후보 8장 추출
-        ─ 카드는 LLM이 생성하는 게 아니라 AAC 카드 담당자가 제공한 실제 카탈로그(cards_catalog.json)에서만 나옴
+        ─ 카드는 LLM이 생성하는 게 아니라 AAC 카드 담당자가 제공한 실제 카탈로그에서 나옴 (DB `cards` 테이블 우선 조회, 실패 시 `cards_catalog.json` fallback)
   → personalize.py: rerank()
         ─ 사용자의 과거 선택 이력(전체 횟수 + 같은 intent/place 상황 횟수)을 가산해 재정렬
   → AnalyzeResponse { analysis, cards }
@@ -77,7 +77,7 @@ speech_text(옵션) + visual_context.place(옵션)
 | GET | `/health` | 서버 생존 확인 |
 | POST | `/auth/signup` | 회원가입 |
 | POST | `/auth/login` | 로그인, JWT 토큰 발급 |
-| POST | `/transcribe` | 영상/오디오 → speech_text (Faster-Whisper STT) |
+| POST | `/transcribe` | 영상/오디오 → speech_text (Faster-Whisper STT). 다른 Mode 2 API와 달리 인증 불필요 |
 | POST | `/scene` | 사진 → 장소 인식 (AI 서버 경유, 실패 시 200 + context=null) |
 | GET | `/scene/health` | AI 서버 연동 상태 확인 |
 | GET | `/cards/contexts` | 온보딩용 장소 목록 |
@@ -118,7 +118,7 @@ MySQL이 없어도 서버는 기동되며(개인화·문장기록만 생략), Ge
 
 - **서버**: FastAPI + Python, SQLAlchemy(신규 코드) / PyMySQL(레거시 쿼리)
 - **의도 분석 · 문장 조합 LLM**: Gemini API (`gemini-3.1-flash-lite`)
-- **장소 인식**: 별도 AI 서버(`malkong/ai`) — CLIP(`openai/clip-vit-base-patch32`) 비전 인코더 파인튜닝, 6개 장소 클래스
+- **장소 인식**: 별도 AI 서버(`malkong/ai`)에 사진을 보내 6개 장소 라벨 중 하나를 응답받아 매핑 (모델 구현은 해당 저장소 소관)
 - **STT**: Faster-Whisper (CPU)
 - **인증**: JWT (`python-jose`), 비밀번호 해싱(`passlib`/`bcrypt`)
 - **개인화 저장**: MySQL (`card_history` + `usage_log` 테이블)

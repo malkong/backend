@@ -52,6 +52,10 @@ speech_text → LLM 의도 분석 → [card_generator.py: AAC 모듈/DB 조회] 
 ---
 
 ## 최종 파일 구조 (3주차 완성 시)
+> ⚠️ **아래는 v1 기획 당시 예상 구조이며 현행 구조가 아니다.** 실제로는 평평한 구조가 아니라
+> `app/routers/`, `app/services/`, `app/schemas/`, `app/repositories/`, `app/core/`, `app/models/`로
+> 나뉜 계층 구조로 구현됐다. `storage.py`는 존재하지 않으며 그 역할은 `app/core/database.py`,
+> `app/core/seed.py`, `app/repositories/*.py`로 분리됐다.
 ```
 IT_3/
 ├── main.py              # FastAPI 앱 + 모든 엔드포인트
@@ -82,6 +86,9 @@ IT_3/
 > `API_CONTRACT.md`를 볼 것 — 인증(회원가입/로그인, `user_id`는 토큰에서 추출),
 > `/scene`(장소 인식 AI 연동), `/onboarding`, `/history/me` 등이 이후 추가됐고,
 > `/select`도 카드 여러 장을 한 번에 받도록 바뀌었다(아래 "이후 업데이트" 참고).
+> 아래 예시에 나오는 `card_id` 더미 자동 생성(`tmp_<word>`)도 현재는 없다 — `card_id`는 필수값이다.
+> 아래 예시의 `symbol_id` 필드도 현재 코드에는 없다 — `app/schemas/schemas.py`의 `Card`는
+> `symbol_id` 대신 `image_url` 필드를 쓴다. 카드 식별자 키도 `id`가 아니라 `card_id`다.
 
 **공통 규칙**
 - Base URL(로컬): `http://localhost:8000`
@@ -226,6 +233,9 @@ INTENT_LABELS = ["인사", "질문", "요청", "제안", "정보_전달", "감�
 ---
 
 ## AAC 팀원과의 계약 (내 서버 ↔ AAC 카드 담당자)
+> ⚠️ 이 섹션도 v1 기획 당시 안이다. 카드는 결국 팀원 모듈이 아니라 `data/cards_catalog.json`
+> (111장, `card_generator.py`가 직접 매핑)으로 확정됐고, 아래 예시의 `symbol_id` 필드도
+> 현재는 `image_url`로 대체됐다.
 이 부분은 팀원과 이번 주에 확정해야 함.
 
 **내가 팀원에게 주는 것 (의도 분석 결과):**
@@ -265,9 +275,12 @@ INTENT_LABELS = ["인사", "질문", "요청", "제안", "정보_전달", "감�
 AAC 팀원 모듈 연동 후 실제 카드 고유번호로 자동 교체한다.
 
 > ⚠️ **아래 DDL은 기획 당시(v1) 안이며 현행 스키마가 아니다.** 실제 스키마는
-> `data/schema.sql`을 볼 것. 주요 차이: `user_id`/`card_id`는 `BIGINT`,
+> `data/schema.sql`을 볼 것(단, 이 파일도 `users` 테이블 등 일부는 낡아 있으니 인증 관련
+> 스키마는 `app/models/user.py`를 함께 확인할 것). 주요 차이: `user_id`/`card_id`는 `BIGINT`,
 > `card_id`는 `NOT NULL`, 그리고 **카운팅 키는 `uq_user_word (user_id, word)`가 아니라
 > `uq_user_card (user_id, card_id)`** 다(카드 이름 변경·중복에 깨지지 않게 하기 위함).
+> 아래 "더미 값(`tmp_<word>`) 자동 채움" 로직도 현재는 제거되었다 — `card_id`는 필수값이며,
+> 값이 없는 카드는 이력에 기록되지 않는다(자동 채움 없음).
 
 ```sql
 CREATE TABLE IF NOT EXISTS card_history (
@@ -310,11 +323,13 @@ VALUES (%s, %s, %s, %s, %s, %s, %s, NOW());
 ```
 
 **place 고정 라벨셋 (`POST /select` `context.place`, optional):**
+> ⚠️ 아래는 v1 기획 당시 영문 snake_case 안이며 현재 라벨과 다르다. 실제 코드
+> (`app/schemas/schemas.py`의 `PLACE_LABELS`)는 **한글 7종**을 쓴다:
 ```
-bus_entrance, cafe, convenience_store, hospital, pharmacy, restaurant, subway_gate, unknown
+공통, 식당, 병원, 카페, 대중교통, 편의점, 약국
 ```
-- 없거나 `unknown`이어도 `/select`는 실패하지 않는다.
-- `unknown`/미기록은 나중에 점수 계산에서 **절대 서로 매칭되지 않는다** (unknown끼리도 보너스 없음).
+- 없거나 지원하지 않는 값이면 `/select`는 실패하지 않는다.
+- 미기록(`NULL`)은 나중에 점수 계산에서 **절대 서로 매칭되지 않는다**.
 
 **DB 접속 정보 (.env):**
 ```
@@ -357,7 +372,10 @@ score = base_rank + (0.08 × count) + (0.05 × intent_match_count) + (0.05 × pl
 - 옵션 B: `data/seed_demo.sql`을 MySQL에 미리 실행해두고 "이 사용자는 이런 패턴" 시연 (통합 데모용)
 - 두 옵션 모두 준비할 것
 
-**API 실패 시 fallback 카드 (하드코딩):**
+**API 실패 시 fallback 카드 (v1 기획 당시 하드코딩 안 — 현재는 다름):**
+> ⚠️ 아래 `FALLBACK_CARDS` 하드코딩 리스트는 v1 기획 당시 안이며 현재 코드에는 존재하지 않는다.
+> 현재는 카드 후보 생성(`card_generator.get_candidate_cards`)이 실패하면 **빈 리스트**를 반환한다
+> (아래 "이후 업데이트" 섹션 참고).
 ```python
 FALLBACK_CARDS = [
   {"id":"f1","word":"좋아",  "category":"수락","symbol_id":None,"source":"fallback","score":1.0},
@@ -388,9 +406,9 @@ FALLBACK_CARDS = [
     - 확정: Gemini API (gemini-3.1-flash-lite)
          ▼
 [최종 가공된 의도 분석 JSON 데이터 반환]
-- **개인화 저장**: MySQL (내 프로젝트 전용 DB, `card_history` 테이블, PyMySQL로 접속)
+- **개인화 저장**: MySQL (`card_history` 집계 테이블 + `usage_log` 이벤트 로그 테이블). 레거시 쿼리는 PyMySQL, 인증(`users`) 등 신규 코드는 SQLAlchemy로 접속
 - **응답 속도 목표**: 3초 이내
-- **패키지**: fastapi, uvicorn, google-genai, Faster-Whisper, python-dotenv, pydantic, python-multipart, PyMySQL
+- **패키지**: fastapi, uvicorn, google-genai, faster-whisper, python-dotenv, pydantic, pydantic-settings, python-multipart, PyMySQL, SQLAlchemy, httpx, python-jose(JWT), passlib/bcrypt(비밀번호 해싱), cryptography, email-validator
 
 ---
 
@@ -398,14 +416,14 @@ FALLBACK_CARDS = [
 | 위험 | 대응 |
 |------|------|
 | API 키 코드에 직접 기입 | .env에만, .gitignore에 추가 |
-| Gemini JSON 깨짐 | structured output + FALLBACK_CARDS 하드코딩 |
-| 앱에서 CORS 차단 | FastAPI CORSMiddleware 2줄 미리 설정 |
+| Gemini JSON 깨짐 | structured output + FALLBACK_ANALYSIS(고정 intent="기타") 대체 응답. (v1 당시 계획했던 `FALLBACK_CARDS` 하드코딩은 현재 미사용 — 실패 시 빈 리스트 반환) |
+| 앱에서 CORS 차단 | (v1 당시 계획, 현재 코드엔 `CORSMiddleware` 미설정 — 실제로 필요해지면 추가할 것) |
 | 로컬 서버 외부 접근 불가 | 같은 와이파이 IP 또는 ngrok |
 | 앱 연동 안 될 때 발표 | web/index.html 백업 (항상 준비) |
-| AAC 팀원 모듈 늦어짐 | LLM fallback으로 card_generator.py가 혼자 돌아감 |
+| AAC 팀원 모듈 늦어짐 | (v1 당시 계획했던 LLM fallback 카드 생성은 폐기됨. 현재는 AAC 카드 담당자가 제공한 `data/cards_catalog.json`(111장)을 `card_generator.py`가 직접 매핑해 사용) |
 | 1번 클릭에 순위 바뀜 | 공식을 0.08×count로 조정 (recency_bonus 제거) |
 | Gemini 3초 초과 | 데모용으로는 짧은 문장만 입력, 팀원에게 미리 알림 |
-| MySQL 연결 실패 | personalize.py가 get_counts 실패 시 개인화만 생략하고 원본 카드 순서 반환 (/analyze는 죽지 않음). /select는 팀 에러 형식으로 응답 |
+| MySQL 연결 실패 | personalize.py가 get_counts 실패 시 개인화만 생략하고 원본 카드 순서 반환 (/analyze는 죽지 않음). `/select`도 실패 시 500이 아니라 200 + `{ok:false, results:[]}`로 응답 (팀 에러 포맷은 `/analyze`, `/transcribe`만 사용) |
 
 ---
 
@@ -444,6 +462,8 @@ FALLBACK_CARDS = [
 ---
 
 ## 주차별 작업 분리 (터미널 3개 운영 기준)
+> ⚠️ 아래 1~3주차 지시문은 개발 진행을 위해 실제로 사용했던 **완료된 과거 지시문**이다.
+> 파일 구조·계약 내용은 위 "이후 업데이트" 및 현행 코드와 다르니 현재 작업 지침으로 쓰지 말 것.
 
 ### 1주차 지시문 (터미널 1에 복사)
 ```
@@ -575,10 +595,10 @@ GPU 없이 CPU만으로 동작하는 것이 확정된 구성이야.
 ## 검증 방법 (end-to-end)
 1. MySQL에 `aac` 데이터베이스 생성, `.env`에 DB 접속정보 입력
 2. `uvicorn app.main:app --reload` → `http://localhost:8000/docs` (startup 시 card_history 테이블 자동 생성)
-3. `GET /health` → `{"status":"ok"}`
-4. `POST /analyze` → analysis 5필드 + cards(symbol_id/source 포함) 반환
+3. `GET /health` → `{"status":"ok","db":"connected"}` (DB 끊겨도 500 아니라 200+`"db":"disconnected"`)
+4. `POST /analyze` → analysis 5필드 + cards(image_url/card_id/source 포함) 반환
 5. `POST /select` "좋아" 4번 → `POST /analyze` 재호출 → "좋아" score 1위 확인
-6. MySQL `card_history` 테이블에서 카드 이력 및 card_id(더미) 저장 확인
+6. MySQL `card_history` 테이블에서 카드 이력 및 card_id(카탈로그 실제 id) 저장 확인
 7. `POST /transcribe` + 한국어 음성/영상 → speech_text 반환 (ffmpeg + Faster-Whisper, CPU)
 8. `web/index.html` → STT 업로드 + 카드 표시 + 클릭 하이라이트 확인 (순위 변화는 2주차 완료 후)
 
@@ -597,9 +617,11 @@ PR [`backend#26`](https://github.com/malkong/backend/pull/26) (issue [#25](https
 **2. `POST /select` 카드 복수 선택 지원**
 - 배경: 사용자가 카드 여러 장을 골라 문장을 조합할 수 있어야 하는데(예: "이거"+"주세요"), `/select`가 카드 한 장만 받는 계약이라 프론트(`malkong/frontend`)가 단일 선택 UI로 구현돼 있었다.
 - 조치: `SelectRequest.cards`(배열) 추가, 기존 `card`(단수)는 하위호환 유지(deprecated). 응답도 `results` 배열 + 카드 1장일 때만 채워지는 `new_count`로 하위호환.
-- **주의**: 이건 백엔드가 카드 여러 장을 "기록"할 준비만 된 것이다. 화면에서 실제로 카드를 여러 장 고르게 하는 프론트 UI는 아직 안 됐다 — `malkong/frontend` 이슈 [#1](https://github.com/malkong/frontend/issues/1)로 별도 작업 필요. 카드 여러 장을 자연스러운 한 문장으로 합치는 로직(문장 조합/TTS)도 아직 어디에도 구현 안 됨(팀원의 `card_tts` 브랜치가 미연결 상태).
+- **주의**: 이건 백엔드가 카드 여러 장을 "기록"할 준비만 된 것이다. 화면에서 실제로 카드를 여러 장 고르게 하는 프론트 UI는 아직 안 됐다 — `malkong/frontend` 이슈 [#1](https://github.com/malkong/frontend/issues/1)로 별도 작업 필요.
+- **업데이트(이후)**: 카드 여러 장을 자연스러운 한 문장으로 다듬는 로직은 `POST /sentence`(Gemini 기반, `llm.py`의 `make_sentence`)로 구현 완료됨. TTS(음성 출력)는 이 서버 범위 밖(프론트 담당)이며, frontend 쪽 실제 연동 여부는 이 저장소 코드로는 확인 불가 — 별도 확인 필요.
 
 **3. Mode 2(영상 → STT → 분석) — 백엔드는 이미 완성, 프론트만 안 됨**
+> ⚠️ 아래 프론트(`malkong/frontend`) 내부 동작 서술은 이 저장소(backend) 코드로 검증한 내용이 아니다 — `malkong/frontend` 저장소 기준으로 별도 확인 필요.
 - 백엔드 `POST /transcribe`(Faster-Whisper + ffmpeg)와 `POST /analyze`의 `speech_text` 파라미터는 이미 동작한다.
 - 프론트 `home_screen.dart`의 `_pickVideo()`는 영상 파일을 고르기만 하고 서버에 보내지 않는다("영상 전송 기능은 다음 단계에서 연결됩니다" 메시지만 표시). `card_select_screen.dart`도 `place`만 받고 `speech_text`를 넘길 방법이 없다. 완성하려면: (1) 앱에 `/transcribe` 호출 함수 추가, (2) `_pickVideo`가 그 결과로 카드 화면 이동, (3) `CardSelectScreen`이 `speech_text`를 받아 `/analyze`에 전달, (4) `easy_meaning`을 보여줄 화면 자리 마련(현재 어디에도 표시 안 됨) — 4가지 다 미착수.
 
