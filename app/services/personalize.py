@@ -51,6 +51,7 @@ def rerank(cards: list[Card], user_id: int, intent=None, place=None) -> list[Car
                 + PLACE_WEIGHT * place_match
             )
             card.score = score
+            card.used_count = count
             # 결정론적 2차 정렬 키: card_id(없으면 inf), 그다음 word.
             sort_id = card.card_id if card.card_id is not None else float("inf")
             scored.append((score, sort_id, card.word or "", card))

@@ -53,6 +53,10 @@ class Card(BaseModel):
     image_url: Optional[str] = None
     source: str
     score: float
+    # 이 유저가 실제로 이 카드를 고른/온보딩에서 선택한 적이 있는 횟수.
+    # personalize.rerank에서만 채워진다(다른 경로로 만들어진 Card는 0 = "이력 없음").
+    # 프론트가 "자주 쓰는 카드" 라벨을 실제 이력이 있는 카드에만 붙이는 데 쓴다.
+    used_count: int = 0
 
 
 class AnalyzeResponse(BaseModel):
